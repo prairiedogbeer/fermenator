@@ -2,16 +2,16 @@ from setuptools import setup, find_packages
 # pylint: disable=no-name-in-module,F0401,W0232,C0111,R0201
 import fermenator
 
-#def readme():
-#    "Returns the contents of the README.rst file"
-#    with open("README.rst") as f:
-#        return f.read()
+def readme():
+    "Returns the contents of the README.rst file"
+    with open("README.rst") as f:
+        return f.read()
 
 setup(
     name='fermenator',
     version=fermenator.__version__,
     description='Fermentation monitoring software',
-    #long_description=readme(),
+    long_description=readme(),
     author='Prairie Dog Brewing CANADA Inc',
     author_email='gerad@prairiedogbrewing.ca',
     url='http://github.com/prairiedogbeer/fermenator',
