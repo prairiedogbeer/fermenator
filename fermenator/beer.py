@@ -1,6 +1,7 @@
 import logging
+import datetime
 
-class AbsractBeer(object):
+class AbstractBeer(object):
     """
     Represents beer sitting in a fermenter or other temperature-controlled
     vessel. The primary purpose of this class is to implement functions that
@@ -10,7 +11,7 @@ class AbsractBeer(object):
     """
 
     def __init__(self, name):
-        self._name = name
+        self._name = name.upper().strip()
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__,
@@ -38,10 +39,11 @@ class SetPointBeer(AbstractBeer):
     """
 
     def __init__(self, name, datasource, threshold=0.5):
+        super(SetPointBeer, self).__init__(name)
         self.datasource = datasource
         self._threshold = threshold
         self._set_point = None
-        super(SetPointBeer, self).__init__(name)
+        self.data_age_warning_time = 30 * 60 # 30 minutes
 
     @property
     def set_point(self):
@@ -59,13 +61,37 @@ class SetPointBeer(AbstractBeer):
     def threshold(self, value):
         self._threshold = value
 
-    def get_current_temperature(self):
-        return self.datasource.get_key('temperature')
+    def is_old_timestamp(self, timestamp):
+        """
+        Pass a timestamp to this function, it will return True if the date is
+        older than the configured :attr:`data_age_warning_time`.
+        """
+        now = datetime.datetime.now()
+        delta = now - timestamp
+        if delta.total_seconds() >= self.data_age_warning_time:
+            return True
+        return False
+
+    def _get_temperature_data(self):
+        data = self.datasource.get((self.name, 'temperature')).next()
+        if self.is_old_timestamp(data['timestamp']):
+            raise RuntimeError(
+                "no data for {} since {}".format(
+                    self.name,
+                    data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            ))
+        return data['temperature']
 
     def requires_heating(self):
+        """
+        Returns True if the beer requires heating based on the set point,
+        current temperature, and configured threshold, False otherwise. If
+        data is older than the configured :attr:`data_age_warning_time`,
+        returns False, ensuring that the beer is not accidentally heated.
+        """
         if self.set_point is None:
             return False
-        temp = self.get_current_temperature()
+        temp = self._get_temperature_data()
         if self.set_point > (temp + self.threshold):
             self.log.info(
                 "heating required (temp={}, set_point={}, threshold={})".format(
@@ -75,7 +101,7 @@ class SetPointBeer(AbstractBeer):
     def requires_cooling(self):
         if self.set_point is None:
             return False
-        temp = self.get_current_temperature()
+        temp = self._get_temperature_data()
         if (self.set_point + self.threshold) < temp:
             self.log.info(
                 "cooling required (temp={}, set_point={}, threshold={})".format(

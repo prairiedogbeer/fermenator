@@ -20,7 +20,7 @@ def convert_gsheet_date(sheetdate):
     try:
         sheetdate = float(sheetdate)
         return GSHEET_DATETIME_BASE + datetime.timedelta(
-            days=int('{:.0f}'.format(sheetdate - 1.0)),
+            days=int('{:.0f}'.format(sheetdate)),
             seconds=int((sheetdate % 1.0) * 86400)
         )
     except ValueError:
@@ -278,7 +278,13 @@ class BrewometerGoogleSheet(GoogleSheet):
         pri_key = key[0].upper()
         if pri_key in self._formatted_data():
             for row in self._formatted_data()[pri_key]:
-                yield row
+                if len(key) > 1:
+                    if key[1].lower() in row:
+                        yield {'timestamp': row['timestamp'], key[1].lower(): row[key[1].lower()]}
+                    else:
+                        raise RuntimeError("key {} specified but not found in data")
+                else:
+                    yield row
         else:
             self.log.warning(
                 "request for batch id {}, but that name is not found in spreadsheet".format(
