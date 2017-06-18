@@ -9,6 +9,10 @@ import re
 import fermenator.datasource
 
 GSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
+DEFAULT_CREDENTIAL_LOCATIONS = (
+    '.credentials.json',
+    '~/.fermenator/credentials.json',
+    '/etc/fermenator/credentials.json')
 
 def convert_gsheet_date(sheetdate):
     """
@@ -52,23 +56,20 @@ class GoogleSheet(fermenator.datasource.DataSource):
     https://developers.google.com/sheets/api/quickstart/python
     """
     def __init__(self, config=None):
-        """
-        Config must consist of a dictionary with at least the following
-        keys:
-
-        - client_secret: a path to a json file containing the client secret key
-        """
         self.log = logging.getLogger(
             "{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__))
-        self._config = config
+        if config:
+            self._config = config
+        else:
+            self._config = dict()
         self._google_credentials = None
         self._ss_service_handle = None
-        self._ss_cache = {}
-        self._ss_cache_tokens = {}
+        self._ss_cache = dict()
+        self._ss_cache_tokens = dict()
         self._drive_service_handle = None
-        self._has_refreshed = {}
+        self._has_refreshed = dict()
         self._scopes = (
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
@@ -141,12 +142,21 @@ class GoogleSheet(fermenator.datasource.DataSource):
             self.log.debug("getting new google service credentials")
             try:
                 self._google_credentials = ServiceAccountCredentials.from_json_keyfile_name(
-                    self._config['client_secret'], self._scopes)
+                    self._get_credential_config(), self._scopes)
             except KeyError:
                 raise RuntimeError("No client_secret path found in config")
             except TypeError:
                 raise RuntimeError("config does not appear to be a dictionary")
         return self._google_credentials
+
+    def _get_credential_config(self):
+        if 'client_secret_file' in self._config:
+            return self._config['client_secret_file']
+        import os.path
+        for location in DEFAULT_CREDENTIAL_LOCATIONS:
+            if os.path.exists(os.path.expanduser(location)):
+                return os.path.expanduser(location)
+        raise RuntimeError("no configuration found for client secret file")
 
     def _get_ss_service(self):
         """
@@ -218,10 +228,21 @@ class BrewometerGoogleSheet(GoogleSheet):
         except TypeError:
             raise RuntimeError("config is not a dictionary")
         self._data = dict()
-        self.temperature_unit = 'C'
+        self._temperature_unit = 'C'
         self.gravity_unit = 'P'
         self.batch_id_regex = r'\w+'
         super(self.__class__, self).__init__(config=config)
+
+    @property
+    def temperature_unit(self):
+        return self._temperature_unit
+
+    @temperature_unit.setter
+    def temperature_unit(self, value):
+        unit = value.upper()
+        if not unit in ('C', 'F'):
+            raise RuntimeError("Temperature unit must be either 'C' or 'F'")
+        self._temperature_unit = unit
 
     def _formatted_data(self):
         """
@@ -245,7 +266,7 @@ class BrewometerGoogleSheet(GoogleSheet):
                     if batch_id_match:
                         beername = batch_id_match.group(0)
                     temp = float(row[2])
-                    if self.temperature_unit.upper() == 'C':
+                    if self.temperature_unit == 'C':
                         temp = temp_f_to_c(temp)
                     gravity = float(row[1])
                     if self.gravity_unit.upper() == 'P':
@@ -280,7 +301,9 @@ class BrewometerGoogleSheet(GoogleSheet):
             for row in self._formatted_data()[pri_key]:
                 if len(key) > 1:
                     if key[1].lower() in row:
-                        yield {'timestamp': row['timestamp'], key[1].lower(): row[key[1].lower()]}
+                        yield {
+                            'timestamp': row['timestamp'],
+                            key[1].lower(): row[key[1].lower()]}
                     else:
                         raise RuntimeError("key {} specified but not found in data")
                 else:

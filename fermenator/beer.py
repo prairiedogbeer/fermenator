@@ -38,12 +38,12 @@ class SetPointBeer(AbstractBeer):
     approach like you'd find on an STC-1000.
     """
 
-    def __init__(self, name, datasource, threshold=0.5):
+    def __init__(self, name, datasource, set_point, threshold=0.5, data_age_warning_time=(30 * 60)):
         super(SetPointBeer, self).__init__(name)
         self.datasource = datasource
-        self._threshold = threshold
-        self._set_point = None
-        self.data_age_warning_time = 30 * 60 # 30 minutes
+        self.set_point = set_point
+        self.threshold = threshold
+        self.data_age_warning_time = data_age_warning_time
 
     @property
     def set_point(self):
@@ -51,6 +51,7 @@ class SetPointBeer(AbstractBeer):
 
     @set_point.setter
     def set_point(self, value):
+        self.log.info("configuring set point at {}".format(value))
         self._set_point = value
 
     @property
@@ -59,6 +60,7 @@ class SetPointBeer(AbstractBeer):
 
     @threshold.setter
     def threshold(self, value):
+        self.log.info("configuring set point threshold at {}".format(value))
         self._threshold = value
 
     def is_old_timestamp(self, timestamp):
