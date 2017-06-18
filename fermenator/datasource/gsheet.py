@@ -2,8 +2,41 @@ from oauth2client.service_account import ServiceAccountCredentials
 import httplib2
 from apiclient import discovery
 import logging
+import datetime
+from collections import deque
+import re
 
 import fermenator.datasource
+
+GSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
+
+def convert_gsheet_date(sheetdate):
+    """
+    Google Sheets uses a format of float number where the whole part
+    represents days since December 30, 1899, and the decimal part represents
+    partial days. This function converts a google sheet date to a Python
+    datetime.
+    """
+    try:
+        sheetdate = float(sheetdate)
+        return GSHEET_DATETIME_BASE + datetime.timedelta(
+            days=int('{:.0f}'.format(sheetdate - 1.0)),
+            seconds=int((sheetdate % 1.0) * 86400)
+        )
+    except ValueError:
+        # new date format: M/D/Y HH:MM:SS
+        return datetime.datetime.strptime(
+            sheetdate,
+            '%m/%d/%Y %H:%M:%S'
+        )
+
+def temp_f_to_c(temp_f):
+    "Convert a Fahrenheit temperature to celcius, floating point"
+    return (temp_f - 32) * 5.0 / 9.0
+
+def sg_to_plato(sg):
+    "Convert a standard gravity reading to plato (floating point)"
+    return 135.997 * sg**3 - 630.272 * sg**2 + 1111.14 * sg - 616.868
 
 class GoogleSheet(fermenator.datasource.DataSource):
     """
@@ -35,12 +68,14 @@ class GoogleSheet(fermenator.datasource.DataSource):
         self._ss_cache = {}
         self._ss_cache_tokens = {}
         self._drive_service_handle = None
+        self._has_refreshed = {}
         self._scopes = (
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
 
     def get(self, key):
-        pass
+        raise NotImplementedError(
+            "Getting keys in google sheets is not supported")
 
     def set(self, key):
         raise NotImplementedError(
@@ -64,7 +99,18 @@ class GoogleSheet(fermenator.datasource.DataSource):
             self._ss_cache[cache_key] = self._ss_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
                 range=range).execute()
+            self._has_refreshed[spreadsheet_id] = True
         return self._ss_cache[cache_key]
+
+    def is_refreshed(self, spreadsheet_id):
+        """
+        Returns true if data has refreshed since the last time this was checked.
+        Returns True initially.
+        """
+        if spreadsheet_id in self._has_refreshed and self._has_refreshed[spreadsheet_id]:
+            self._has_refreshed[spreadsheet_id] = False
+            return True
+        return False
 
     def get_sheet_range_values(self, spreadsheet_id, range=None):
         """
@@ -104,8 +150,8 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
     def _get_ss_service(self):
         """
-        Uses the google oauth API to get a valid set of temporary credentials
-        that will be used for spreadsheets access.
+        Uses oauth2 credentials from :meth:`_credentials` to gain a handle to the
+        google sheets API.
         """
         self.log.debug("getting new spreadsheet service handle")
         self._ss_service_handle = discovery.build(
@@ -115,10 +161,10 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
     def _get_drive_service(self):
         """
-        Uses the google oauth API to get a valid set of temporary credentials
-        that will be used for google drive access. Drive is used to detect changes
-        in the spreadsheet data such that a full download of sheet data only occurs
-        whenever the sheet is changed; the rest of the time cached data is used.
+        Uses temporary oauth2 credentils to gain a handle to the google drive API.
+        Drive is used to detect changes in the spreadsheet data such that a full
+        download of sheet data only occurs whenever the sheet is changed; the rest
+        of the time cached data is used.
         """
         self.log.debug("getting new drive service handle")
         self._drive_service_handle = discovery.build(
@@ -155,12 +201,86 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
 
 class BrewometerGoogleSheet(GoogleSheet):
+    """
+    This class is designed to read data out of a spreadsheet created by the
+    brewometer (Tilt) manufacturer, where the data is appended to a worksheet
+    called ``Sheet1``.
+    """
+
+    def __init__(self, config=False):
+        """
+        Pass a spreadsheet_id as a key in the config dictionary.
+        """
+        try:
+            self._spreadsheet_id = config['spreadsheet_id']
+        except KeyError:
+            raise RuntimeError("no spreadsheet_id in config")
+        except TypeError:
+            raise RuntimeError("config is not a dictionary")
+        self._data = dict()
+        self.temperature_unit = 'C'
+        self.gravity_unit = 'P'
+        self.batch_id_regex = r'\w+'
+        super(self.__class__, self).__init__(config=config)
+
+    def _formatted_data(self):
+        """
+        This method wraps the :meth:`get_sheet_range_values` method,
+        specifying the spreadsheet id and range. The called method
+        caches the data locally but will grab new data whenever it is
+        present. Further, the method sorts the data into a dictionary
+        that supports key-based access.
+        """
+        raw_data = self.get_sheet_range_values(
+            self._spreadsheet_id, range='Sheet1!A2:E')
+        if self.is_refreshed(self._spreadsheet_id):
+            self.log.debug("data refreshed, building data structure")
+            for row in raw_data:
+                try:
+                    try:
+                        beername = row[4].upper().strip()
+                    except IndexError:
+                        continue
+                    batch_id_match = re.match(self.batch_id_regex, beername)
+                    if batch_id_match:
+                        beername = batch_id_match.group(0)
+                    temp = float(row[2])
+                    if self.temperature_unit.upper() == 'C':
+                        temp = temp_f_to_c(temp)
+                    gravity = float(row[1])
+                    if self.gravity_unit.upper() == 'P':
+                        gravity = sg_to_plato(gravity)
+                    structured = {
+                        'batch_id': beername,
+                        'timestamp': convert_gsheet_date(row[0]),
+                        'gravity': gravity,
+                        'temperature': temp,
+                        'tilt_color': row[3]
+                    }
+                    if beername in self._data:
+                        self._data[beername].appendleft(structured)
+                    else:
+                        self._data[beername] = deque(
+                            [structured])
+                except IndexError:
+                    self.log.error("error in row: {}".format(row))
+        return self._data
 
     def get(self, key):
         """
-        Key should consist of the batch id.
+        Key should consist of the batch id, as the first item in an interable,
+        such as a list, tuple, or deque. Don't pass in a bare string.
+
         Values returned will be an iterable in reverse time order consisting of
-        dictionary fields for `timestamp`, `batch_id`, `colour`, `temperature`,
+        dictionary fields for `timestamp`, `tilt_color`, `temperature`,
         and `gravity`.
         """
-        pass
+        pri_key = key[0].upper()
+        if pri_key in self._formatted_data():
+            for row in self._formatted_data()[pri_key]:
+                yield row
+        else:
+            self.log.warning(
+                "request for batch id {}, but that name is not found in spreadsheet".format(
+                    key
+                ))
