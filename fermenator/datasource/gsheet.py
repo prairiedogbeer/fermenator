@@ -55,15 +55,15 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
     https://developers.google.com/sheets/api/quickstart/python
     """
-    def __init__(self, config=None):
+    def __init__(self, name, **kwargs):
         self.log = logging.getLogger(
-            "{}.{}".format(
+            "{}.{}.{}".format(
                 self.__class__.__module__,
-                self.__class__.__name__))
-        if config:
-            self._config = config
-        else:
-            self._config = dict()
+                self.__class__.__name__,
+                name))
+        self.name = name
+        self._config = kwargs
+        self.log.debug("config: {}".format(self._config))
         self._google_credentials = None
         self._ss_service_handle = None
         self._ss_cache = dict()
@@ -217,12 +217,13 @@ class BrewometerGoogleSheet(GoogleSheet):
     called ``Sheet1``.
     """
 
-    def __init__(self, config=False):
+    def __init__(self, name, **kwargs):
         """
         Pass a spreadsheet_id as a key in the config dictionary.
         """
+        super(self.__class__, self).__init__(name, **kwargs)
         try:
-            self._spreadsheet_id = config['spreadsheet_id']
+            self._spreadsheet_id = kwargs['spreadsheet_id']
         except KeyError:
             raise RuntimeError("no spreadsheet_id in config")
         except TypeError:
@@ -231,7 +232,6 @@ class BrewometerGoogleSheet(GoogleSheet):
         self._temperature_unit = 'C'
         self.gravity_unit = 'P'
         self.batch_id_regex = r'\w+'
-        super(self.__class__, self).__init__(config=config)
 
     @property
     def temperature_unit(self):

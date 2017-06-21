@@ -7,18 +7,18 @@ class Relay(object):
     """
     Implements a relay object that can be turned on or off, including running
     with a duty cycle (eg 50%%, such that relay turns on and off 50%% of the
-    time).
+    time). This version of the object doesn't actually control any relays,
+    more-or-less acting as a mock relay. Extend this class to control specific
+    hardware.
     """
 
-    def __init__(self, name, hwaddr, duty_cycle_pct=100, duty_cycle_time=60):
+    def __init__(self, name, **kwargs):
         self.log = logging.getLogger(
-            "{}.{}.{}.{}".format(
+            "{}.{}.{}".format(
                 self.__class__.__module__, self.__class__.__name__,
-                hwaddr, name))
-        self.hwaddr = hwaddr
+                name))
+        self._config = kwargs
         self.name = name
-        self.duty_cycle_pct = duty_cycle_pct
-        self.duty_cycle_time = duty_cycle_time
         self._state = None
         self.off()
 
@@ -28,11 +28,8 @@ class Relay(object):
     def on(self):
         "Turns on the relay"
         if self._state != ON:
-            if self.duty_cycle_pct >= 100:
-                self.log.info("turning on")
-                self._state = ON
-            else:
-                self.log.error("duty cycles not implemented yet")
+            self.log.info("turning on")
+            self._state = ON
 
     def off(self):
         "Turns off the relay"
@@ -49,7 +46,3 @@ class Relay(object):
         if self._state == OFF:
             return True
         return False
-
-    def __send_low_level_signal__(self, signal):
-        "Send a low-level signal to the hardware address of this relay"
-        self.log.debug("sending signal {} to hwaddr {}".format(signal, hwaddr))

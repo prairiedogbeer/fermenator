@@ -11,15 +11,14 @@ class ManagerThread(threading.Thread):
     as desired.
     """
 
-    def __init__(self, beer, active_cooling=False,
-                 active_heating=False, active_cooling_relay=None,
-                 active_heating_relay=None, polling_frequency=60):
+    def __init__(self, beer, **kwargs):
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__,
                 beer.name))
         self.beer = beer
+        self.log.debug(kwargs)
         self.active_cooling = active_cooling
         self.active_heating = active_heating
         if active_cooling_relay:
@@ -29,6 +28,9 @@ class ManagerThread(threading.Thread):
         self.polling_frequency = polling_frequency
         self._stop = False
         threading.Thread.__init__(self)
+
+    def __destroy__(self):
+        self._stop = True
 
     @property
     def polling_frequency(self):
