@@ -11,6 +11,7 @@ Options:
   -h --help         Show this screen.
   --version         Show version.
   -v, --verbose     Enable verbose output logging
+  -x, --xtra-verbose  Enable super-verbose logging
   -l, --logfile=<x>  Log to the specified file instead of screen
   -r, --refresh=<n>  Set interval for config change polling [default: 300]
 """
@@ -24,18 +25,31 @@ from fermenator.config import GoogleSheetConfig
 def main():
     args = docopt(__doc__, version="fermenator 0.1")
 
-    logging.getLogger().setLevel(logging.WARN)
-    if args['--verbose']:
-        logging.getLogger('fermenator').setLevel(logging.DEBUG)
+    root_logger = logging.getLogger()
+    ferm_logger = logging.getLogger('fermenator')
+    if args['--verbose'] or args['--xtra-verbose']:
+        ferm_logger.setLevel(logging.DEBUG)
     else:
-        logging.getLogger('fermenator').setLevel(logging.INFO)
+        ferm_logger.setLevel(logging.INFO)
 
-    log_format = "%(asctime)s %(levelname)s %(name)s %(message)s"
-    if args['--logfile']:
-        logging.basicConfig(
-            filename=args['--logfile'], format=log_format)
+    if args['--xtra-verbose']:
+        root_logger.setLevel(logging.DEBUG)
     else:
-        logging.basicConfig(format=log_format)
+        root_logger.setLevel(logging.WARN)
+
+    log_format = "%(asctime)s %(levelname)-8s %(name)s %(message)s"
+    formatter = logging.Formatter(log_format)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(formatter)
+    root_logger.addHandler(ch)
+
+    if args['--logfile']:
+        fh = logging.FileHandler(args['--logfile'])
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        root_logger.addHandler(fh)
 
     GoogleSheetConfig(
         'MAIN',
