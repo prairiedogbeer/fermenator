@@ -1,4 +1,5 @@
 import sys
+import time
 from fermenator.datasource.gsheet import *
 from fermenator.relay import *
 from fermenator.beer import *
@@ -34,19 +35,67 @@ class GoogleSheetConfig(GoogleSheet):
         if not 'config_spreadsheet_id' in kwargs:
             raise RuntimeError("no configuration spreadsheet id provided")
         super(GoogleSheetConfig, self).__init__(name, **kwargs)
+        if 'refresh_interval' in kwargs:
+            self.refresh_interval = float(kwargs['refresh_interval'])
+        else:
+            self.refresh_interval = 60.0
         self._relays = dict()
         self._beers = dict()
         self._managers = dict()
         self._datasources = dict()
+        self.stop = False
 
     def assemble(self):
         """
-        Reads all the configuration and assembles objects.
+        Reads all the configuration and assembles objects in the correct order.
         """
-        relays = self.get_relays()
-        datasources = self.get_datasources()
-        beers = self.get_beers()
-        managers = self.get_managers()
+        self.get_relays()
+        self.get_datasources()
+        self.get_beers()
+        self.get_managers()
+
+    def disassemble(self):
+        """
+        Shuts down any running manager threads and destroys objects in the
+        reverse order of creation.
+        """
+        for manager in self._managers.keys():
+            self._managers[manager].stop()
+            self._managers[manager].join(30.0)
+            if self._managers[manager].isAlive():
+                self.log.error("manager thread {} could not be stopped".format(manager))
+                # TODO: deal with this problem smartly
+        # force delete the reference to the old objects, should result
+        # in a __destroy__ call on each
+        for manager in self._managers.keys():
+            del self._managers[manager]
+        for beer in self._beers.keys():
+            del self._beers[beer]
+        for datasource in self._datasources.keys():
+            del self._datasources[datasource]
+        for relay in self._relays.keys():
+            del self._relays[relay]
+
+    def run(self):
+        """
+        Runs all manager threads and checks for updated configuration.
+        When updated configuration is found, all existing manager threads
+        are shut down and new ones are assembled and run.
+        """
+        try:
+            while not self.stop:
+                self.assemble()
+                for manager in self._managers:
+                    self._managers[manager].start()
+                fresh = True
+                while fresh:
+                    time.sleep(self.refresh_interval)
+                    if not self.stop and self._is_spreadsheet_changed(self._config['config_spreadsheet_id']):
+                        self.log.info("detected new configuration data")
+                        fresh = False
+                self.disassemble()
+        except KeyboardInterrupt:
+            self.disassemble()
 
     def get_relays(self):
         # TODO: there is a bug somewhere here where gdrive isn't set up initially
@@ -124,8 +173,8 @@ class GoogleSheetConfig(GoogleSheet):
 
     def _vivify_config_beers(self, dict_data):
         if 'beer' in dict_data['config']:
-            if dict_data['config']['beer'] in self._datasources:
-                dict_data['config']['beer'] = self._datasources[
+            if dict_data['config']['beer'] in self._beers:
+                dict_data['config']['beer'] = self._beers[
                     dict_data['config']['beer']]
             else:
                 raise RuntimeError(

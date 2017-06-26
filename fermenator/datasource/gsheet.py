@@ -63,7 +63,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
                 name))
         self.name = name
         self._config = kwargs
-        self.log.debug("config: {}".format(self._config))
+        #self.log.debug("config: {}".format(self._config))
         self._google_credentials = None
         self._ss_service_handle = None
         self._ss_cache = dict()
@@ -73,6 +73,9 @@ class GoogleSheet(fermenator.datasource.DataSource):
         self._scopes = (
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
+
+    def __destroy__(self):
+        self.log.debug("__destroy__ called")
 
     def get(self, key):
         raise NotImplementedError(
@@ -96,7 +99,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         """
         cache_key = "%s-%s" % (spreadsheet_id, range)
         if not cache_key in self._ss_cache or self._is_spreadsheet_changed(spreadsheet_id):
-            self.log.debug("getting new sheet data")
+            self.log.debug("getting new sheet data for range {}".format(range))
             self._ss_cache[cache_key] = self._ss_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
                 range=range).execute()
@@ -108,9 +111,15 @@ class GoogleSheet(fermenator.datasource.DataSource):
         Returns true if data has refreshed since the last time this was checked.
         Returns True initially.
         """
-        if spreadsheet_id in self._has_refreshed and self._has_refreshed[spreadsheet_id]:
-            self._has_refreshed[spreadsheet_id] = False
-            return True
+        self.log.debug("checking freshness for sheet {}".format(spreadsheet_id))
+        if spreadsheet_id in self._has_refreshed:
+            if self._has_refreshed[spreadsheet_id]:
+                self._has_refreshed[spreadsheet_id] = False
+                return True
+        else:
+            self.log.error(
+                "spreadsheet_id {} is not being monitored by this instance".format(
+                    spreadsheet_id))
         return False
 
     def get_sheet_range_values(self, spreadsheet_id, range=None):
@@ -164,8 +173,9 @@ class GoogleSheet(fermenator.datasource.DataSource):
         google sheets API.
         """
         self.log.debug("getting new spreadsheet service handle")
+        http = httplib2.Http()
         self._ss_service_handle = discovery.build(
-            'sheets', 'v4', http=self._credentials.authorize(httplib2.Http()),
+            'sheets', 'v4', http=self._credentials.authorize(http),
             discoveryServiceUrl='https://sheets.googleapis.com/$discovery/rest?version=v4',
             cache_discovery=False)
 
@@ -177,8 +187,9 @@ class GoogleSheet(fermenator.datasource.DataSource):
         of the time cached data is used.
         """
         self.log.debug("getting new drive service handle")
+        http = httplib2.Http()
         self._drive_service_handle = discovery.build(
-            'drive', 'v3', http=self._credentials.authorize(httplib2.Http()),
+            'drive', 'v3', http=self._credentials.authorize(http),
             cache_discovery=False)
 
     def _is_spreadsheet_changed(self, spreadsheet_id):

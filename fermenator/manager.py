@@ -10,26 +10,44 @@ class ManagerThread(threading.Thread):
     managed, as well as a :class:`Relay` object for each of cooling or heating,
     as desired.
     """
+    # TODO: Python documentation says that a subclassed Thread object should
+    # only implement __init__ and run, nothing else. This object should wrap
+    # a thread object and pass in a callable.
 
-    def __init__(self, beer, **kwargs):
+    def __init__(self, name, **kwargs):
+        if not 'beer' in kwargs:
+            raise RuntimeError("'beer' must be specified in kwargs")
+        self.beer = kwargs['beer']
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__,
-                beer.name))
-        self.beer = beer
-        self.log.debug(kwargs)
-        self.active_cooling = active_cooling
-        self.active_heating = active_heating
-        if active_cooling_relay:
-            self.active_cooling_relay = active_cooling_relay
-        if active_heating_relay:
-            self.active_heating_relay = active_heating_relay
-        self.polling_frequency = polling_frequency
+                self.beer.name))
+        if 'active_cooling' in kwargs:
+            self.active_cooling = kwargs['active_cooling']
+        else:
+            self.active_cooling = False
+        if 'active_heating' in kwargs:
+            self.active_heating = kwargs['active_heating']
+        else:
+            self.active_heating = False
+        if 'active_cooling_relay' in kwargs:
+            self.active_cooling_relay = kwargs['active_cooling_relay']
+        else:
+            self.active_cooling_relay = None
+        if 'active_heating_relay' in kwargs:
+            self.active_heating_relay = kwargs['active_heating_relay']
+        else:
+            self.active_heating_relay = None
+        if 'polling_frequency' in kwargs:
+            self.polling_frequency = float(kwargs['polling_frequency'])
+        else:
+            self.polling_frequency = 60
         self._stop = False
         threading.Thread.__init__(self)
 
     def __destroy__(self):
+        self.log.debug("__destroy__ called")
         self._stop = True
 
     @property
@@ -47,7 +65,10 @@ class ManagerThread(threading.Thread):
 
     @active_cooling_relay.setter
     def active_cooling_relay(self, relay):
-        self.log.debug("cooling relay set to {}".format(relay.name))
+        if relay:
+            self.log.debug("cooling relay set to {}".format(relay.name))
+        else:
+            self.log.debug("cooling relay disabled")
         self._active_cooling_relay = relay
 
     @property
@@ -56,7 +77,10 @@ class ManagerThread(threading.Thread):
 
     @active_heating_relay.setter
     def active_heating_relay(self, relay):
-        self.log.debug("heating relay set to {}".format(relay.name))
+        if relay:
+            self.log.debug("heating relay set to {}".format(relay.name))
+        else:
+            self.log.debug("heating relay disabled")
         self._active_heating_relay = relay
 
     @property

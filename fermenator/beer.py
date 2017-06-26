@@ -19,6 +19,9 @@ class AbstractBeer(object):
                 self._name))
         self._config = kwargs
 
+    def __destroy__(self):
+        self.log.debug("__destroy__ called")
+
     @property
     def name(self):
         """
@@ -53,9 +56,16 @@ class SetPointBeer(AbstractBeer):
             raise RuntimeError("datasource is required in kwargs")
         if not 'set_point' in self._config:
             raise RuntimeError("no set_point in kwargs")
-        if not 'threshold' in self._config:
+        else:
+            self._config['set_point'] = float(self._config['set_point'])
+        if 'threshold' in self._config:
+            self._config['threshold'] = float(self._config['threshold'])
+        else:
             self._config['threshold'] = 0.5
-        if not 'data_age_warning_time' in self._config:
+        if 'data_age_warning_time' in self._config:
+            self._config['data_age_warning_time'] = float(
+                self._config['data_age_warning_time'])
+        else:
             self._config['data_age_warning_time'] = 60 * 30
 
     @property

@@ -23,6 +23,7 @@ class Relay(object):
         self.off()
 
     def __destroy__(self):
+        self.log.debug("__destroy__ called")
         self.off()
 
     def on(self):
