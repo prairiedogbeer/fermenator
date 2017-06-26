@@ -1,5 +1,6 @@
 from oauth2client.service_account import ServiceAccountCredentials
-import httplib2
+#import httplib2
+import requests
 from apiclient import discovery
 import logging
 import datetime
@@ -111,7 +112,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         Returns true if data has refreshed since the last time this was checked.
         Returns True initially.
         """
-        self.log.debug("checking freshness for sheet {}".format(spreadsheet_id))
+        #self.log.debug("checking freshness for sheet {}".format(spreadsheet_id))
         if spreadsheet_id in self._has_refreshed:
             if self._has_refreshed[spreadsheet_id]:
                 self._has_refreshed[spreadsheet_id] = False
@@ -173,9 +174,8 @@ class GoogleSheet(fermenator.datasource.DataSource):
         google sheets API.
         """
         self.log.debug("getting new spreadsheet service handle")
-        http = httplib2.Http()
         self._ss_service_handle = discovery.build(
-            'sheets', 'v4', http=self._credentials.authorize(http),
+            'sheets', 'v4', http=self._credentials.authorize(CustomHttp()),
             discoveryServiceUrl='https://sheets.googleapis.com/$discovery/rest?version=v4',
             cache_discovery=False)
 
@@ -187,9 +187,8 @@ class GoogleSheet(fermenator.datasource.DataSource):
         of the time cached data is used.
         """
         self.log.debug("getting new drive service handle")
-        http = httplib2.Http()
         self._drive_service_handle = discovery.build(
-            'drive', 'v3', http=self._credentials.authorize(http),
+            'drive', 'v3', http=self._credentials.authorize(CustomHttp()),
             cache_discovery=False)
 
     def _is_spreadsheet_changed(self, spreadsheet_id):
@@ -324,3 +323,30 @@ class BrewometerGoogleSheet(GoogleSheet):
                 "request for batch id {}, but that name is not found in spreadsheet".format(
                     key
                 ))
+
+class CustomHttp(object):
+    """
+    This class acts as a workaround for threading issues in Httlib2
+    that cause the GoogleSheet classes above to blow up when used in
+    thread context (in parallel). This class replaces the httplib2
+    Http() object with an object of the same methods but using
+    the requests library instead (which is threadsafe).
+
+    This class was written by github user sadovnychyi:
+    https://github.com/sadovnychyi
+
+    Issue and code discussed here:
+    https://github.com/GoogleCloudPlatform/google-cloud-python/issues/1214
+
+    """
+    def __init__(self, timeout=None):
+        self.timeout = timeout
+
+    def request(self, uri, method='GET', body=None, headers=None,
+                redirections=None, connection_type=None):
+        if connection_type is not None:
+            uri = '%s://%s' % (connection_type, uri)
+        resp = requests.request(method=method, url=uri, data=body, headers=headers,
+                                timeout=self.timeout)
+        resp.status = resp.status_code
+        return resp, resp.content
