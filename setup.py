@@ -24,12 +24,12 @@ setup(
         #'py-gaugette',
         #'Adafruit_Python_LED_Backpack',
     ],
-    #scripts=[
-    #    'bin/controller-v3',
+    scripts=[
+        'bin/fermenator',
     #    'bin/mini-controller-v3',
     #    'bin/probe-probe',
     #    'bin/prototype',
     #    'bin/bitwave'
-    #],
+    ],
     test_suite="nose.collector",
 )

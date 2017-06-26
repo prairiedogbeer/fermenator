@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+"""
+fermenator - monitor and manage fermentation
+
+Usage:
+  fermenator run <google_sheet_id> [options]
+  fermenator -h | --help
+  fermenator --version
+
+Options:
+  -h --help         Show this screen.
+  --version         Show version.
+  -v, --verbose     Enable verbose output logging
+  -l, --logfile=<x>  Log to the specified file instead of screen
+  -r, --refresh=<n>  Set interval for config change polling [default: 300]
+"""
+from docopt import docopt
+import logging
+
+logging.captureWarnings(True)
+
+from fermenator.config import GoogleSheetConfig
+
+def main():
+    args = docopt(__doc__, version="fermenator 0.1")
+
+    logging.getLogger().setLevel(logging.WARN)
+    if args['--verbose']:
+        logging.getLogger('fermenator').setLevel(logging.DEBUG)
+    else:
+        logging.getLogger('fermenator').setLevel(logging.INFO)
+
+    log_format = "%(asctime)s %(levelname)s %(name)s %(message)s"
+    if args['--logfile']:
+        logging.basicConfig(
+            filename=args['--logfile'], format=log_format)
+    else:
+        logging.basicConfig(format=log_format)
+
+    GoogleSheetConfig(
+        'MAIN',
+        refresh_interval=float(args['--refresh']),
+        config_spreadsheet_id=args['<google_sheet_id>']
+    ).run()
+
+if __name__ == "__main__":
+    main()
