@@ -2,3 +2,4 @@ oauth2client
 google-api-python-client
 requests
 docopt
+gpiozero
