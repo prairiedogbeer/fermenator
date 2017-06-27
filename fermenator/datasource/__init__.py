@@ -13,7 +13,7 @@ class DataSource(object):
         """
         pass
 
-    def get(self, key):
+    def get(self, key, time_limit_s=60*15):
         """
         Given a hierarchical key name in the form of an iterable, return an interable
         handle to the dataset found at the key. Eg::
@@ -24,6 +24,7 @@ class DataSource(object):
                 print(point)
 
         Time series data will always be returned in reverse-time order (newest first).
+        Defaults to 15-minutes worth of data points.
         """
         pass
 
@@ -38,3 +39,10 @@ class DataSource(object):
         and the shape of the data being stored.
         """
         pass
+
+class DataNotFoundError(RuntimeError):
+    """
+    Raise this exception when the user tries to read data that isn't found in the
+    DataSource.
+    """
+    pass
