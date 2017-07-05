@@ -3,45 +3,16 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from apiclient import discovery
 import logging
-import datetime
 from collections import deque
 import re
 
 import fermenator.datasource
+from fermenator.conversions import temp_f_to_c, sg_to_plato, convert_spreadsheet_date
 
-GSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
 DEFAULT_CREDENTIAL_LOCATIONS = (
     '.credentials.json',
     '~/.fermenator/credentials.json',
     '/etc/fermenator/credentials.json')
-
-def convert_gsheet_date(sheetdate):
-    """
-    Google Sheets uses a format of float number where the whole part
-    represents days since December 30, 1899, and the decimal part represents
-    partial days. This function converts a google sheet date to a Python
-    datetime.
-    """
-    try:
-        sheetdate = float(sheetdate)
-        return GSHEET_DATETIME_BASE + datetime.timedelta(
-            days=int('{:.0f}'.format(sheetdate)),
-            seconds=int((sheetdate % 1.0) * 86400)
-        )
-    except ValueError:
-        # new date format: M/D/Y HH:MM:SS
-        return datetime.datetime.strptime(
-            sheetdate,
-            '%m/%d/%Y %H:%M:%S'
-        )
-
-def temp_f_to_c(temp_f):
-    "Convert a Fahrenheit temperature to celcius, floating point"
-    return (temp_f - 32) * 5.0 / 9.0
-
-def sg_to_plato(sg):
-    "Convert a standard gravity reading to plato (floating point)"
-    return 135.997 * sg**3 - 630.272 * sg**2 + 1111.14 * sg - 616.868
 
 class GoogleSheet(fermenator.datasource.DataSource):
     """
@@ -283,7 +254,7 @@ class BrewometerGoogleSheet(GoogleSheet):
                         gravity = sg_to_plato(gravity)
                     structured = {
                         'batch_id': beername,
-                        'timestamp': convert_gsheet_date(row[0]),
+                        'timestamp': convert_spreadsheet_date(row[0]),
                         'gravity': gravity,
                         'temperature': temp,
                         'tilt_color': row[3]

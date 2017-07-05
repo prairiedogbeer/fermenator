@@ -44,9 +44,15 @@ class SetPointBeer(AbstractBeer):
     kwargs can include the following:
 
     - datasource (object)
+    - ds_path_template (str, dot-separated path to pass to datasource)
     - set_point (float)
     - threshold (optional, in the same units as the beer)
     - data_age_warning_time (optional, in seconds)
+
+    ds_path_template supports format-type arguments, which will be substituted
+    when making request against the datasource.
+
+    - \{name\} - the name of the beer (batch id)
 
     """
 
@@ -54,6 +60,8 @@ class SetPointBeer(AbstractBeer):
         super(SetPointBeer, self).__init__(name, **kwargs)
         if not 'datasource' in self._config:
             raise RuntimeError("datasource is required in kwargs")
+        if not 'ds_path_template' in self._config:
+            raise RuntimeError("no ds_path_template in kwargs")
         if not 'set_point' in self._config:
             raise RuntimeError("no set_point in kwargs")
         else:
@@ -129,7 +137,11 @@ class SetPointBeer(AbstractBeer):
         """
         if self.set_point is None:
             return False
-        temp = self._get_temperature_data()
+        try:
+            temp = self._get_temperature_data()
+        except RuntimeError as err:
+            self.log.exception(err)
+            return False
         if self.set_point > (temp + self.threshold):
             self.log.info(
                 "heating required (temp={}, set_point={}, threshold={})".format(
@@ -139,7 +151,11 @@ class SetPointBeer(AbstractBeer):
     def requires_cooling(self):
         if self.set_point is None:
             return False
-        temp = self._get_temperature_data()
+        try:
+            temp = self._get_temperature_data()
+        except RuntimeError as err:
+            self.log.exception(err)
+            return False
         if (self.set_point + self.threshold) < temp:
             self.log.info(
                 "cooling required (temp={}, set_point={}, threshold={})".format(
