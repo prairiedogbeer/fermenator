@@ -12,6 +12,12 @@ def sg_to_plato(sg):
     "Convert a standard gravity reading to plato (floating point)"
     return 135.997 * sg**3 - 630.272 * sg**2 + 1111.14 * sg - 616.868
 
+def rfc3339_timestamp_to_datetime(ts_string):
+    return datetime.datetime.strptime(
+        ts_string,
+        '%Y-%m-%dT%H:%M:%S.%f'
+    )
+
 SPREADSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
 
 def convert_spreadsheet_date(sheetdate):

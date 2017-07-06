@@ -44,15 +44,10 @@ class SetPointBeer(AbstractBeer):
     kwargs can include the following:
 
     - datasource (object)
-    - ds_path_template (str, dot-separated path to pass to datasource)
+    - identifier (the identifier used at the datasource for this beer)
     - set_point (float)
     - threshold (optional, in the same units as the beer)
     - data_age_warning_time (optional, in seconds)
-
-    ds_path_template supports format-type arguments, which will be substituted
-    when making request against the datasource.
-
-    - \{name\} - the name of the beer (batch id)
 
     """
 
@@ -60,12 +55,12 @@ class SetPointBeer(AbstractBeer):
         super(SetPointBeer, self).__init__(name, **kwargs)
         if not 'datasource' in self._config:
             raise RuntimeError("datasource is required in kwargs")
-        if not 'ds_path_template' in self._config:
-            raise RuntimeError("no ds_path_template in kwargs")
-        if not 'set_point' in self._config:
-            raise RuntimeError("no set_point in kwargs")
-        else:
+        if not 'identifier' in self._config:
+            raise RuntimeError("no identifier specified in beer config")
+        try:
             self._config['set_point'] = float(self._config['set_point'])
+        except KeyError:
+            raise RuntimeError("no set_point in kwargs")
         if 'threshold' in self._config:
             self._config['threshold'] = float(self._config['threshold'])
         else:
@@ -112,14 +107,13 @@ class SetPointBeer(AbstractBeer):
         Pass a timestamp to this function, it will return True if the date is
         older than the configured :attr:`data_age_warning_time`.
         """
-        now = datetime.datetime.now()
-        delta = now - timestamp
+        delta = datetime.datetime.now() - timestamp
         if delta.total_seconds() >= self.data_age_warning_time:
             return True
         return False
 
     def _get_temperature_data(self):
-        data = self.datasource.get((self.name, 'temperature')).next()
+        data = self.datasource.get_temperature(self._config['identifier'])
         if self.is_old_timestamp(data['timestamp']):
             raise RuntimeError(
                 "no data for {} since {}".format(

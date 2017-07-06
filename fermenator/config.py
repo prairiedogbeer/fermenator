@@ -139,13 +139,13 @@ class FermenatorConfig():
                 # TODO: deal with this problem smartly
         # force delete the reference to the old objects, should result
         # in a __destroy__ call on each
-        for manager in self._managers.keys():
+        for manager in tuple(self._managers.keys()):
             del self._managers[manager]
-        for beer in self._beers.keys():
+        for beer in tuple(self._beers.keys()):
             del self._beers[beer]
-        for datasource in self._datasources.keys():
+        for datasource in tuple(self._datasources.keys()):
             del self._datasources[datasource]
-        for relay in self._relays.keys():
+        for relay in tuple(self._relays.keys()):
             del self._relays[relay]
 
     def run(self):
@@ -274,8 +274,8 @@ class FermenatorConfig():
 
             {
                 'French Saison': {
-                    'beer': 'PB0044',
                     'config': {
+                        'beer': 'PB0044',
                         'active_cooling_relay': 'CoolingRelay1',
                         'polling_frequency': 30,
                         'active_cooling': True
@@ -404,6 +404,7 @@ class FirebaseConfig(FermenatorConfig):
         super(self.__class__, self).__init__(name, **kwargs)
         self._fb = FirebaseDataSource("{}-db".format(name), **kwargs)
         self._version = self.upstream_version()
+        self.log.info("using config version {}".format(self._version))
 
     def upstream_version(self):
         "Returns the current configuration version"
@@ -412,6 +413,7 @@ class FirebaseConfig(FermenatorConfig):
     def is_config_changed(self):
         if self._version == self.upstream_version():
             return False
+        self.log.debug("config changed to version {}".format(self._version))
         return True
 
     def get_relay_config(self):

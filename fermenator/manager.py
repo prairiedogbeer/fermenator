@@ -2,7 +2,7 @@ import logging
 import threading
 import time
 
-class ManagerThread(threading.Thread):
+class ManagerThread():
     """
     Create one of these for every beer that needs to be managed.
 
@@ -44,11 +44,20 @@ class ManagerThread(threading.Thread):
         else:
             self.polling_frequency = 60
         self._stop = False
-        threading.Thread.__init__(self)
+        self._thread = threading.Thread(target=self.run)
 
     def __destroy__(self):
         self.log.debug("__destroy__ called")
         self._stop = True
+
+    def start(self):
+        self._thread.start()
+
+    def join(self, timeout=None):
+        self._thread.join(timeout)
+
+    def isAlive(self):
+        return self._thread.isAlive()
 
     @property
     def polling_frequency(self):
