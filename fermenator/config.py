@@ -187,11 +187,17 @@ class FermenatorConfig():
             {
                 'CoolingRelay1': {
                     'type': 'GPIORelay',
-                    'pin': 1
+                    'config': {
+                        'gpio_pin': 1
+                    }
                 },
                 'CoolingRelay2': {
                     'type': 'GPIORelay',
-                    'pin': 2
+                    'config': {
+                        'gpio_pin': 2,
+                        'duty_cycle': 0.5,
+                        'cycle_time': 600
+                    }
                 }
             }
         """
@@ -215,8 +221,10 @@ class FermenatorConfig():
             {
                 'BrewometerSpreadsheet': {
                     'type': 'BrewometerGoogleSheet',
-                    'spreadsheet_id': '1x09d0291n31309audfa-3298193u41',
-                    'client_secret_file': '/home/foo/bar/creds.json'
+                    'config': {
+                        'spreadsheet_id': '1x09d0291n31309audfa-3298193u41',
+                        'client_secret_file': '/home/foo/bar/creds.json'
+                    }
                 }
             }
 
@@ -239,10 +247,12 @@ class FermenatorConfig():
             {
                 'PB0044': {
                     'type': 'SetPointBeer',
-                    'datasource': 'BrewometerSpreadsheet',
-                    'set_point': 18.5,
-                    'threshold': 0.3,
-                    'data_age_warning_time': 3600
+                    'config': {
+                        'datasource': 'BrewometerSpreadsheet',
+                        'set_point': 18.5,
+                        'threshold': 0.3,
+                        'data_age_warning_time': 3600
+                    }
                 }
             }
 
@@ -265,9 +275,11 @@ class FermenatorConfig():
             {
                 'French Saison': {
                     'beer': 'PB0044',
-                    'active_cooling_relay': 'CoolingRelay1',
-                    'polling_frequency': 30,
-                    'active_cooling': True
+                    'config': {
+                        'active_cooling_relay': 'CoolingRelay1',
+                        'polling_frequency': 30,
+                        'active_cooling': True
+                    }
                 }
             }
         """
