@@ -4,6 +4,7 @@ fermenator - monitor and manage fermentation
 
 Usage:
   fermenator run [options]
+  fermenator config importyaml <filename> [options]
   fermenator config mkobj <objtype> <name> [options]
   fermenator config rmobj <objtype> <name> [options]
   fermenator config set <objtype> <name> <key> <value> [options]
@@ -25,9 +26,7 @@ logging.captureWarnings(True)
 
 import fermenator.config
 
-def main():
-    args = docopt(__doc__, version="fermenator 0.1")
-
+def set_up_logging(args):
     root_logger = logging.getLogger()
     ferm_logger = logging.getLogger('fermenator')
     if args['--verbose'] or args['--xtra-verbose']:
@@ -54,7 +53,11 @@ def main():
         fh.setFormatter(formatter)
         root_logger.addHandler(fh)
 
-    # load configuration
+def main():
+    args = docopt(__doc__, version="fermenator 0.1")
+    set_up_logging(args)
+
+    # load configuration object (dynamic class loader)
     config = fermenator.config.ConfigLoader().config()
     config_klass = fermenator.config.get_class_by_name(config['datasource']['type'])
     config_obj = config_klass(config['datasource']['name'], **config['datasource']['config'])
@@ -62,7 +65,10 @@ def main():
     if args['run']:
         config_obj.run()
     elif args['config']:
-        print("I'd do something here")
+        if args['importyaml']:
+            config_obj.import_yaml_file(args['<filename>'])
+        else:
+            print("Sorry, this doesn't work yet")
 
 
 if __name__ == "__main__":

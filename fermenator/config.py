@@ -173,6 +173,9 @@ class FermenatorConfig():
         except KeyboardInterrupt:
             self.disassemble()
 
+    def import_yaml_file(self, filename):
+        raise NotImplementedError("import_yaml_file is not implemented for this config datasource")
+
     def is_config_changed(self):
         raise NotImplementedError("is_config_changed needs to be implemented in subclass")
 
@@ -422,3 +425,13 @@ class FirebaseConfig(FermenatorConfig):
         if data:
             return data
         return {}
+
+    def import_yaml_file(self, filename):
+        self.log.info("importing config from {}".format(filename))
+        import yaml
+        with open(filename) as confyaml:
+            cdata = yaml.load(confyaml)
+        handle = self._fb._fb_hndl
+        for path in self.PREFIX:
+            handle = handle.child(path)
+        handle.set(cdata)

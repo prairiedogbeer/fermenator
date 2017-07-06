@@ -4,3 +4,4 @@ requests
 docopt
 gpiozero
 pyrebase
+pyyaml
