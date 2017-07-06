@@ -3,7 +3,10 @@
 fermenator - monitor and manage fermentation
 
 Usage:
-  fermenator run <google_sheet_id> [options]
+  fermenator run [options]
+  fermenator config mkobj <objtype> <name> [options]
+  fermenator config rmobj <objtype> <name> [options]
+  fermenator config set <objtype> <name> <key> <value> [options]
   fermenator -h | --help
   fermenator --version
 
@@ -20,7 +23,7 @@ import logging
 
 logging.captureWarnings(True)
 
-from fermenator.config import GoogleSheetConfig
+import fermenator.config
 
 def main():
     args = docopt(__doc__, version="fermenator 0.1")
@@ -51,11 +54,16 @@ def main():
         fh.setFormatter(formatter)
         root_logger.addHandler(fh)
 
-    GoogleSheetConfig(
-        'MAIN',
-        refresh_interval=float(args['--refresh']),
-        config_spreadsheet_id=args['<google_sheet_id>']
-    ).run()
+    # load configuration
+    config = fermenator.config.ConfigLoader().config()
+    config_klass = fermenator.config.get_class_by_name(config['datasource']['type'])
+    config_obj = config_klass(config['datasource']['name'], **config['datasource']['config'])
+
+    if args['run']:
+        config_obj.run()
+    elif args['config']:
+        print("I'd do something here")
+
 
 if __name__ == "__main__":
     main()

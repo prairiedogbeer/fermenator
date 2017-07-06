@@ -34,6 +34,10 @@ class GoogleSheet(fermenator.datasource.DataSource):
                 self.__class__.__name__,
                 name))
         self.name = name
+        try:
+            self._ss_id = kwargs['spreadsheet_id']
+        except KeyError:
+            raise RuntimeError("spreadsheet_id must be provided")
         self._config = kwargs
         #self.log.debug("config: {}".format(self._config))
         self._google_credentials = None
@@ -41,7 +45,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         self._ss_cache = dict()
         self._ss_cache_tokens = dict()
         self._drive_service_handle = None
-        self._has_refreshed = dict()
+        self._has_refreshed = False
         self._scopes = (
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
@@ -57,7 +61,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         raise NotImplementedError(
             "Setting keys in google sheets is not supported")
 
-    def get_sheet_range(self, spreadsheet_id, range=None):
+    def get_sheet_range(self, range=None):
         """
         Retreive a range for the given spreadsheet ID. Range data will be cached locally
         to avoid re-getting the same data over and over again through the API. Any
@@ -69,37 +73,31 @@ class GoogleSheet(fermenator.datasource.DataSource):
             Sheet1!A1:E
 
         """
-        cache_key = "%s-%s" % (spreadsheet_id, range)
-        if not cache_key in self._ss_cache or self._is_spreadsheet_changed(spreadsheet_id):
+        cache_key = "%s" % (range,)
+        if not cache_key in self._ss_cache or self._is_spreadsheet_changed():
             self.log.debug("getting new sheet data for range {}".format(range))
             self._ss_cache[cache_key] = self._ss_service.spreadsheets().values().get(
-                spreadsheetId=spreadsheet_id,
+                spreadsheetId=self._ss_id,
                 range=range).execute()
-            self._has_refreshed[spreadsheet_id] = True
+            self._has_refreshed = True
         return self._ss_cache[cache_key]
 
-    def is_refreshed(self, spreadsheet_id):
+    def is_refreshed(self):
         """
         Returns true if data has refreshed since the last time this was checked.
-        Returns True initially.
         """
         #self.log.debug("checking freshness for sheet {}".format(spreadsheet_id))
-        if spreadsheet_id in self._has_refreshed:
-            if self._has_refreshed[spreadsheet_id]:
-                self._has_refreshed[spreadsheet_id] = False
-                return True
-        else:
-            self.log.error(
-                "spreadsheet_id {} is not being monitored by this instance".format(
-                    spreadsheet_id))
+        if self._has_refreshed:
+            self._has_refreshed = False
+            return True
         return False
 
-    def get_sheet_range_values(self, spreadsheet_id, range=None):
+    def get_sheet_range_values(self, range=None):
         """
         Same as :meth:`get_sheet_range` except that this function returns only
         values for that range rather than other metadata such as formulae.
         """
-        return self.get_sheet_range(spreadsheet_id, range).get('values', [])
+        return self.get_sheet_range(range).get('values', [])
 
     @property
     def _ss_service(self):
@@ -162,7 +160,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
             'drive', 'v3', http=self._credentials.authorize(CustomHttp()),
             cache_discovery=False)
 
-    def _is_spreadsheet_changed(self, spreadsheet_id):
+    def _is_spreadsheet_changed(self):
         """
         Checks the drive API for changes to the specified spreadsheet (file), caches
         state so that subsequent calls to this method only return new changes since the
@@ -170,23 +168,23 @@ class GoogleSheet(fermenator.datasource.DataSource):
         """
         have_change = False
         page_token = None
-        if not spreadsheet_id in self._ss_cache_tokens:
-            self.log.debug("initializing spreadsheet pageToken cache for {}".format(spreadsheet_id))
-            self._ss_cache_tokens[spreadsheet_id] = self._drive_service.changes().getStartPageToken().execute()['startPageToken']
-        page_token = self._ss_cache_tokens[spreadsheet_id]
+        if not self._ss_id in self._ss_cache_tokens:
+            self.log.debug("initializing spreadsheet pageToken cache")
+            self._ss_cache_tokens[self._ss_id] = self._drive_service.changes().getStartPageToken().execute()['startPageToken']
+        page_token = self._ss_cache_tokens[self._ss_id]
         while page_token is not None:
             response = self._drive_service.changes().list(pageToken=page_token,
-                                                    spaces='drive').execute()
+                                                          spaces='drive').execute()
             for change in response.get('changes'):
                 # Process change
-                if change.get('fileId') == spreadsheet_id:
+                if change.get('fileId') == self._ss_id:
                     self.log.debug("matching change found in file {}".format(change.get('fileId')))
                     have_change = True
                 else:
                     self.log.debug("ignoring change found in unmatched file {}".format(change.get('fileId')))
             if 'newStartPageToken' in response:
                 # Last page, save this token for the next polling interval
-                self._ss_cache_tokens[spreadsheet_id] = response.get('newStartPageToken')
+                self._ss_cache_tokens[self._ss_id] = response.get('newStartPageToken')
             page_token = response.get('nextPageToken')
         return have_change
 
@@ -203,12 +201,6 @@ class BrewometerGoogleSheet(GoogleSheet):
         Pass a spreadsheet_id as a key in the config dictionary.
         """
         super(self.__class__, self).__init__(name, **kwargs)
-        try:
-            self._spreadsheet_id = kwargs['spreadsheet_id']
-        except KeyError:
-            raise RuntimeError("no spreadsheet_id in config")
-        except TypeError:
-            raise RuntimeError("config is not a dictionary")
         self._data = dict()
         self._temperature_unit = 'C'
         self.gravity_unit = 'P'
@@ -233,9 +225,8 @@ class BrewometerGoogleSheet(GoogleSheet):
         present. Further, the method sorts the data into a dictionary
         that supports key-based access.
         """
-        raw_data = self.get_sheet_range_values(
-            self._spreadsheet_id, range='Sheet1!A2:E')
-        if self.is_refreshed(self._spreadsheet_id):
+        raw_data = self.get_sheet_range_values(range='Sheet1!A2:E')
+        if self.is_refreshed():
             self.log.debug("data refreshed, building data structure")
             for row in raw_data:
                 try:
