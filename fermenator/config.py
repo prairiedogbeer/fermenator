@@ -196,9 +196,10 @@ class FermenatorConfig():
 
     def get_relays(self):
         # TODO: there is a bug somewhere here where gdrive isn't set up initially
-        if self._relays and not self.is_refreshed():
+        if self._relays and not self.is_config_changed():
             return self._relays
-        for relay in self.get_relay_config().keys():
+        dict_data = self.get_relay_config()
+        for relay in dict_data.keys():
             self.log.debug("loading relay {}".format(relay))
             self._relays[relay] = self.objectify_dict(relay, dict_data[relay], default_type=Relay)
         return self._relays
@@ -220,9 +221,10 @@ class FermenatorConfig():
         raise NotImplementedError("get_datasource_config needs to be implemented")
 
     def get_datasources(self):
-        if self._datasources and not self.is_refreshed():
+        if self._datasources and not self.is_config_changed():
             return self._datasources
-        for objname in self.get_datasource_config().keys():
+        dict_data = self.get_datasource_config()
+        for objname in dict_data.keys():
             self.log.debug("loading datasource {}".format(objname))
             self._datasources[objname] = self.objectify_dict(objname, dict_data[objname])
         return self._datasources
@@ -245,9 +247,10 @@ class FermenatorConfig():
         raise NotImplementedError("get_beer_configuration needs to be implemented")
 
     def get_beers(self):
-        if self._beers and not self.is_refreshed():
+        if self._beers and not self.is_config_changed():
             return self._beers
-        for objname in self.get_beer_configuration().keys():
+        dict_data = self.get_beer_configuration()
+        for objname in dict_data.keys():
             self.log.debug("loading beer {}".format(objname))
             self._beers[objname] = self.objectify_dict(objname, dict_data[objname])
         return self._beers
@@ -268,9 +271,10 @@ class FermenatorConfig():
         raise NotImplementedError("get_manager_configuration needs implementation")
 
     def get_managers(self):
-        if self._managers and not self.is_refreshed():
+        if self._managers and not self.is_config_changed():
             return self._managers
-        for objname in self.get_manager_configuration().keys():
+        dict_data = self.get_manager_configuration()
+        for objname in dict_data.keys():
             self.log.debug("loading manager {}".format(objname))
             self._managers[objname] = self.objectify_dict(
                 objname, dict_data[objname], default_type=ManagerThread)
@@ -288,6 +292,8 @@ class FermenatorConfig():
             dict_data = self._vivify_config_beers(dict_data)
         elif issubclass(klass, AbstractBeer):
             dict_data = self._vivify_config_datasources(dict_data)
+        if dict_data['config'] == 'inherit':
+            dict_data['config'] = self._config
         return klass(
             name,
             **dict_data['config']
@@ -371,7 +377,7 @@ class GoogleSheetConfig(FermenatorConfig):
 class FirebaseConfig(FermenatorConfig):
 
     #: A prefix under which all configuration values should be found
-    PREFIX = ('fermenator', 'config')
+    PREFIX = ('config', 'fermenator')
 
     def __init__(self, name, **kwargs):
         """

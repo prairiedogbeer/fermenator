@@ -55,7 +55,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
             del kwargs['temperature_unit']
         except KeyError:
             self.temperature_unit = 'C'
-        super(self.__class__, self).__init__(**kwargs)
+        super(self.__class__, self).__init__(name, **kwargs)
 
     def get_gravity(self, identifier):
         """
