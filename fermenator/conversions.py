@@ -18,6 +18,9 @@ def rfc3339_timestamp_to_datetime(ts_string):
         '%Y-%m-%dT%H:%M:%S.%f'
     )
 
+def unix_timestmap_to_datetime(timestamp):
+    return datetime.datetime.utcfromtimestamp(timestamp)
+
 SPREADSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
 
 def convert_spreadsheet_date(sheetdate):

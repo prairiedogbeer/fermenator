@@ -59,8 +59,8 @@ def main():
 
     # load configuration object (dynamic class loader)
     config = fermenator.config.ConfigLoader().config()
-    config_klass = fermenator.config.get_class_by_name(config['datasource']['type'])
-    config_obj = config_klass(config['datasource']['name'], **config['datasource']['config'])
+    config_klass = fermenator.config.get_class_by_name(config['bootstrap']['type'])
+    config_obj = config_klass(config['bootstrap']['name'], **config['bootstrap']['config'])
 
     if args['run']:
         config_obj.run()

@@ -1,7 +1,7 @@
 import pyrebase
 import logging
 from . import DataSource, DataNotFoundError
-from fermenator.conversions import temp_c_to_f, sg_to_plato, rfc3339_timestamp_to_datetime
+from fermenator.conversions import temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime
 
 class FirebaseDataSource(DataSource):
 
@@ -64,7 +64,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         val = super(self.__class__, self).get(
             ('brewery', identifier, 'readings', 'gravity'))
         rdata = dict()
-        rdata['timestamp'] = rfc3339_timestamp_to_datetime(val['timestamp'])
+        rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
         rdata['gravity'] = float(val['value'])/1000.0
         if self.gravity_unit == 'P':
             rdata['gravity'] = sg_to_plato(rdata['gravity'])
@@ -78,7 +78,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         val = super(self.__class__, self).get(
             ('brewery', identifier, 'readings', 'tilt_temperature'))
         rdata = dict()
-        rdata['timestamp'] = rfc3339_timestamp_to_datetime(val['timestamp'])
+        rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
         rdata['temperature'] = float(val['value'])  # celcius
         if self.temperature_unit == 'F':
             rdata['temperature'] = temp_c_to_f(rdata['temperature'])

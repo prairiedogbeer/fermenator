@@ -355,6 +355,34 @@ class FermenatorConfig():
                         dict_data['config']['active_heating_relay'], name))
         return dict_data
 
+class DictionaryConfig(FermenatorConfig):
+    """
+    Directly provide a dictionary of configuration to this class. Object references
+    should be in the text form rather than class instances. Essentially, this class
+    is designed to be passed config read out of a yaml or json file, or passed
+    directly from testing code.
+
+    When instantiating this config, you should directly pass the top-level config
+    dictionary as kwargs, eg::
+
+        config_dict = yaml.load(configfile)
+        config_obj = DictionaryConfig('somename', **config_dict)
+
+    """
+
+    def get_relay_config(self):
+        return self._config['relays']
+
+    def get_datasource_config(self):
+        return self._config['datasources']
+
+    def get_beer_configuration(self):
+        return self._config['beers']
+
+    def get_manager_configuration(self):
+        return self._config['managers']
+
+
 class GoogleSheetConfig(FermenatorConfig):
     """
     This class implements configuration as a google sheet. Sheet data
