@@ -1,0 +1,55 @@
+version: 2017070604
+managers:
+  French Saison:
+    config:
+      beer: PB0053
+      active_cooling_relay: CoolingRelay1
+      active_heating_relay: HeatingRelay1
+      polling_frequency: 30
+      active_heating: True
+      active_cooling: True
+  Witbier:
+    config:
+      beer: PB0055
+      active_cooling_relay: CoolingRelay2
+      polling_frequency: 15
+      active_heating: False
+      active_heating: False
+beers:
+  PB0053:
+    type: SetPointBeer
+    config:
+      identifier: pfv01
+      datasource: brewconsole
+      set_point: 18.5
+      threshold: 0.3
+      data_age_warning_time: 3600
+  PB0055:
+    type: SetPointBeer
+    config:
+      identifier: pfv02
+      datasource: brewconsole
+      set_point: 18.5
+      threshold: 0.5
+      data_age_warning_time: 1800
+datasources:
+  brewconsole:
+    type: BrewConsoleFirebaseDS
+    config: inherit
+relays:
+  CoolingRelay1:
+    type: Relay
+    config:
+      gpio_pin: 1
+      duty_cycle: 0.5
+      cycle_time: 600
+  HeatingRelay1:
+    type: Relay
+    config:
+      gpio_pin: 2
+      duty_cycle: 0.5
+      cycle_time: 1800
+  CoolingRelay2:
+    type: Relay
+    config:
+      gpio_pin: 3
