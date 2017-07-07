@@ -4,10 +4,6 @@ fermenator - monitor and manage fermentation
 
 Usage:
   fermenator run [options]
-  fermenator config importyaml <filename> [options]
-  fermenator config mkobj <objtype> <name> [options]
-  fermenator config rmobj <objtype> <name> [options]
-  fermenator config set <objtype> <name> <key> <value> [options]
   fermenator -h | --help
   fermenator --version
 
@@ -17,7 +13,6 @@ Options:
   -v, --verbose     Enable verbose output logging
   -x, --xtra-verbose  Enable super-verbose logging
   -l, --logfile=<x>  Log to the specified file instead of screen
-  -r, --refresh=<n>  Set interval for config change polling [default: 300]
 """
 from docopt import docopt
 import logging
@@ -64,11 +59,6 @@ def main():
 
     if args['run']:
         config_obj.run()
-    elif args['config']:
-        if args['importyaml']:
-            config_obj.import_yaml_file(args['<filename>'])
-        else:
-            print("Sorry, this doesn't work yet")
 
 
 if __name__ == "__main__":
