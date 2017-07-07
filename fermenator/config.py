@@ -3,6 +3,7 @@ import os.path
 import time
 from yaml import load as load_yaml
 import logging
+import gc
 
 from fermenator.datasource.gsheet import *
 from fermenator.datasource.firebase import *
@@ -15,12 +16,20 @@ class ClassNotFoundError(RuntimeError):
 
 def get_class_by_name(name):
     "Returns a configuration class by name (not an instance)"
-    if name in ('GoogleSheetConfig', 'FirebaseConfig'):
+    if name in ('DictionaryConfig', 'GoogleSheetConfig', 'FirebaseConfig'):
         return globals()[name]
     raise ClassNotFoundError("no configuration class {} could be found".format(name))
 
 def str_to_class(classname):
     return getattr(sys.modules[__name__], classname)
+
+def garbage_collect():
+    """
+    Run a two-pass garbage collection
+    """
+    log = logging.getLogger("{}.garbage_collect".format(__name__)).debug("collecting")
+    for _ in range(2):
+        gc.collect()
 
 def sheet_data_to_dict(sheet_data):
     dict_config = dict()
@@ -138,15 +147,12 @@ class FermenatorConfig():
                 self.log.error("manager thread {} could not be stopped".format(manager))
                 # TODO: deal with this problem smartly
         # force delete the reference to the old objects, should result
-        # in a __destroy__ call on each
-        for manager in tuple(self._managers.keys()):
-            del self._managers[manager]
-        for beer in tuple(self._beers.keys()):
-            del self._beers[beer]
-        for datasource in tuple(self._datasources.keys()):
-            del self._datasources[datasource]
-        for relay in tuple(self._relays.keys()):
-            del self._relays[relay]
+        # in a __delete__ call on each
+        self._managers = None
+        self._beers = None
+        self._datasources = None
+        self._relays = None
+        garbage_collect()
 
     def run(self):
         """
@@ -382,6 +388,8 @@ class DictionaryConfig(FermenatorConfig):
     def get_manager_configuration(self):
         return self._config['managers']
 
+    def is_config_changed(self):
+        return False
 
 class GoogleSheetConfig(FermenatorConfig):
     """
