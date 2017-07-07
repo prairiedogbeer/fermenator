@@ -50,8 +50,8 @@ class GoogleSheet(fermenator.datasource.DataSource):
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
 
-    def __destroy__(self):
-        self.log.debug("__destroy__ called")
+    def __del__(self):
+        self.log.debug("destructing")
 
     def get(self, key):
         raise NotImplementedError(

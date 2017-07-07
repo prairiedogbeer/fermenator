@@ -46,8 +46,8 @@ class ManagerThread():
         self._stop = False
         self._thread = threading.Thread(target=self.run)
 
-    def __destroy__(self):
-        self.log.debug("__destroy__ called")
+    def __del__(self):
+        self.log.debug("destructing")
         self._stop = True
 
     def start(self):

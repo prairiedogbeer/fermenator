@@ -21,8 +21,8 @@ class Relay(object):
         self._state = None
         self.off()
 
-    def __destroy__(self):
-        self.log.debug("__destroy__ called")
+    def __del__(self):
+        self.log.debug("destructing")
         self.off()
 
     def on(self):
