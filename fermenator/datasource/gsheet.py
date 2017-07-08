@@ -1,10 +1,13 @@
-from oauth2client.service_account import ServiceAccountCredentials
-#import httplib2
-import requests
-from apiclient import discovery
+"""
+This class includes the objects that expose google sheet data as either
+configuration or beer information.
+"""
 import logging
 from collections import deque
 import re
+from oauth2client.service_account import ServiceAccountCredentials
+import requests
+from apiclient import discovery
 
 import fermenator.datasource
 from fermenator.conversions import temp_f_to_c, sg_to_plato, convert_spreadsheet_date
@@ -28,11 +31,15 @@ class GoogleSheet(fermenator.datasource.DataSource):
     https://developers.google.com/sheets/api/quickstart/python
     """
     def __init__(self, name, **kwargs):
+        """
+        This object requires one kwarg, spreadsheet_id.
+        """
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__,
                 name))
+        super(GoogleSheet, self).__init__(name, **kwargs)
         self.name = name
         try:
             self._ss_id = kwargs['spreadsheet_id']
@@ -50,14 +57,19 @@ class GoogleSheet(fermenator.datasource.DataSource):
             'https://www.googleapis.com/auth/spreadsheets.readonly',
             'https://www.googleapis.com/auth/drive.readonly')
 
-    def __del__(self):
-        self.log.debug("destructing")
-
     def get(self, key):
+        """
+        This function is the one used to retrieve spreadsheet data, it must be
+        implemented in a child class for the specific sheet.
+        """
         raise NotImplementedError(
             "Getting keys in google sheets is not supported")
 
-    def set(self, key):
+    def set(self, key, value):
+        """
+        This function is the one used to set spreadsheet data, it must be
+        implemented in a child class for the specific sheet.
+        """
         raise NotImplementedError(
             "Setting keys in google sheets is not supported")
 
@@ -74,8 +86,8 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
         """
         cache_key = "%s" % (range,)
-        if not cache_key in self._ss_cache or self._is_spreadsheet_changed():
-            self.log.debug("getting new sheet data for range {}".format(range))
+        if not cache_key in self._ss_cache or self.is_spreadsheet_changed():
+            self.log.debug("getting new sheet data for range %s", range)
             self._ss_cache[cache_key] = self._ss_service.spreadsheets().values().get(
                 spreadsheetId=self._ss_id,
                 range=range).execute()
@@ -117,6 +129,10 @@ class GoogleSheet(fermenator.datasource.DataSource):
 
     @property
     def _credentials(self):
+        """
+        Returns the google credential object based on the json credential
+        keyfile.
+        """
         if self._google_credentials is None:
             self.log.debug("getting new google service credentials")
             try:
@@ -129,6 +145,10 @@ class GoogleSheet(fermenator.datasource.DataSource):
         return self._google_credentials
 
     def _get_credential_config(self):
+        """
+        This method attempts to find a json credential key file at one of the
+        :attr:`DEFAULT_CREDENTIAL_LOCATIONS`.
+        """
         if 'client_secret_file' in self._config:
             return self._config['client_secret_file']
         import os.path
@@ -160,7 +180,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
             'drive', 'v3', http=self._credentials.authorize(CustomHttp()),
             cache_discovery=False)
 
-    def _is_spreadsheet_changed(self):
+    def is_spreadsheet_changed(self):
         """
         Checks the drive API for changes to the specified spreadsheet (file), caches
         state so that subsequent calls to this method only return new changes since the
@@ -178,10 +198,10 @@ class GoogleSheet(fermenator.datasource.DataSource):
             for change in response.get('changes'):
                 # Process change
                 if change.get('fileId') == self._ss_id:
-                    self.log.debug("matching change found in file {}".format(change.get('fileId')))
+                    self.log.debug("matching change found in file %s", change.get('fileId'))
                     have_change = True
                 else:
-                    self.log.debug("ignoring change found in unmatched file {}".format(change.get('fileId')))
+                    self.log.debug("ignoring change found in unmatched file %s", change.get('fileId'))
             if 'newStartPageToken' in response:
                 # Last page, save this token for the next polling interval
                 self._ss_cache_tokens[self._ss_id] = response.get('newStartPageToken')
@@ -200,7 +220,7 @@ class BrewometerGoogleSheet(GoogleSheet):
         """
         Pass a spreadsheet_id as a key in the config dictionary.
         """
-        super(self.__class__, self).__init__(name, **kwargs)
+        super(BrewometerGoogleSheet, self).__init__(name, **kwargs)
         self._data = dict()
         self._temperature_unit = 'C'
         self.gravity_unit = 'P'
@@ -208,10 +228,16 @@ class BrewometerGoogleSheet(GoogleSheet):
 
     @property
     def temperature_unit(self):
+        """
+        Returns the current temperature unit
+        """
         return self._temperature_unit
 
     @temperature_unit.setter
     def temperature_unit(self, value):
+        """
+        Sets the current temperature unit.
+        """
         unit = value.upper()
         if not unit in ('C', 'F'):
             raise RuntimeError("Temperature unit must be either 'C' or 'F'")
@@ -256,7 +282,7 @@ class BrewometerGoogleSheet(GoogleSheet):
                         self._data[beername] = deque(
                             [structured])
                 except IndexError:
-                    self.log.error("error in row: {}".format(row))
+                    self.log.error("error in row: %s", row)
         return self._data
 
     def get(self, key):
@@ -277,14 +303,15 @@ class BrewometerGoogleSheet(GoogleSheet):
                             'timestamp': row['timestamp'],
                             key[1].lower(): row[key[1].lower()]}
                     else:
-                        raise RuntimeError("key {} specified but not found in data")
+                        raise RuntimeError(
+                            "key {} specified but not found in data".format(
+                                key))
                 else:
                     yield row
         else:
             self.log.warning(
-                "request for batch id {}, but that name is not found in spreadsheet".format(
-                    key
-                ))
+                "request for batch id %s, but that name is not found in spreadsheet",
+                key)
 
 class CustomHttp(object):
     """
@@ -302,10 +329,15 @@ class CustomHttp(object):
 
     """
     def __init__(self, timeout=None):
+        "Initialize the class with a configurable timeout"
         self.timeout = timeout
 
     def request(self, uri, method='GET', body=None, headers=None,
                 redirections=None, connection_type=None):
+        """
+        Implement an http2lib-style request function in the requests library
+        to avoid issues with thread safety.
+        """
         if connection_type is not None:
             uri = '%s://%s' % (connection_type, uri)
         resp = requests.request(method=method, url=uri, data=body, headers=headers,

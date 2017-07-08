@@ -1,3 +1,7 @@
+"""
+This module contains :class:`Relay`-type objects, which represent actual Relay
+devices used to enable or disable heating and cooling of beers.
+"""
 import logging
 import gpiozero
 
@@ -38,11 +42,17 @@ class Relay(object):
             self._state = OFF
 
     def is_on(self):
+        """
+        Returns True if the relay state is on, False otherwise.
+        """
         if self._state == ON:
             return True
         return False
 
     def is_off(self):
+        """
+        Returns True if the relay state is on, False otherwise.
+        """
         if self._state == OFF:
             return True
         return False
@@ -73,8 +83,8 @@ class GPIORelay(Relay):
             of it (such as refrigeration units). Use at your own risk.
 
         """
-        super(self.__class__, self).__init__(name, **kwargs)
-        if not "gpio_pin" in kwargs:
+        super(GPIORelay, self).__init__(name, **kwargs)
+        if "gpio_pin" not in kwargs:
             raise RuntimeError("No gpio_pin specified in relay configuration")
         if 'duty_cycle' in kwargs:
             if 'cycle_time' in kwargs:
@@ -96,7 +106,7 @@ class GPIORelay(Relay):
         """
         Turn on the relay at the GPIO pin associated with the instance.
         """
-        super(self.__class__, self).on()
+        super(GPIORelay, self).on()
         if self._duty_cycle:
             on_time = self._duty_cycle * self._cycle_time
             off_time = self._cycle_time - on_time
@@ -108,5 +118,5 @@ class GPIORelay(Relay):
         """
         Turn off the relay at the GPIO pin associated with the instance.
         """
-        super(self.__class__, self).off()
+        super(GPIORelay, self).off()
         self._device.off()

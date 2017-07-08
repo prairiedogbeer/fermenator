@@ -1,7 +1,19 @@
+"""
+The classes in fermenator.beer model fermentation profiles and apply them to
+a given batch of beer, implementing a simple API where a caller may ask,
+"do you require heating or cooling?", and the beer responds with True or False.
+Based on this simple API, a :class:`fermenator.manager.ManagerThread` may
+manage the beer and activate heating or cooling as required.
+
+An additonal aspect of fermenator beers is that they check the recency of their
+data, and are capable of logging errors or warnings if the data is old or looks
+unreliable.
+"""
 import logging
 import datetime
 
 class StaleDataError(RuntimeError):
+    "Raise this error when data appears to be out of date"
     pass
 
 class AbstractBeer(object):
@@ -53,22 +65,33 @@ class AbstractBeer(object):
         return self._name
 
     def requires_heating(self):
+        "Implement this method in a subclass using the algorithm of your choice"
         pass
 
     def requires_cooling(self):
+        "Implement this method in a subclass using the algorithm of your choice"
         pass
 
     @property
     def data_age_warning_time(self):
+        """
+        Returns the configured data_age_warning_time
+        """
         return self._config['data_age_warning_time']
 
     @data_age_warning_time.setter
     def data_age_warning_time(self, value):
-        self.log.info("configuring data_age_warning_time at {}".format(value))
+        """
+        Set the data_age_warning_time
+        """
+        self.log.info("configuring data_age_warning_time at %f", value)
         self._config['data_age_warning_time'] = value
 
     @property
     def datasource(self):
+        """
+        Returns the configured datasource for this beer
+        """
         return self._config['datasource']
 
     def check_timestamp(self, timestamp):
@@ -81,31 +104,30 @@ class AbstractBeer(object):
             raise StaleDataError(
                 "no data for {} since {}".format(
                     self.name,
-                    timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            ))
+                    timestamp.strftime('%Y-%m-%d %H:%M:%S')))
 
 class SetPointBeer(AbstractBeer):
     """
     This version of :class:`AbstractBeer` implements a "dumb" set-point
     approach like you'd find on an STC-1000.
-
-    kwargs can include the following:
-
-    - datasource (object)
-    - identifier (the identifier used at the datasource for this beer)
-    - set_point (float)
-    - tolerance (optional, in the same units as the beer)
-    - data_age_warning_time (optional, in seconds)
-    - gravity_unit (optional, defaults to 'P', plato)
-    - temperature_unit (optional, defaults to 'C', celcius)
-
     """
 
     def __init__(self, name, **kwargs):
-        super(self.__class__, self).__init__(name, **kwargs)
-        if not 'datasource' in self._config:
+        """
+        kwargs can include the following:
+
+        - datasource (object)
+        - identifier (the identifier used at the datasource for this beer)
+        - set_point (float)
+        - tolerance (optional, in the same units as the beer)
+        - data_age_warning_time (optional, in seconds)
+        - gravity_unit (optional, defaults to 'P', plato)
+        - temperature_unit (optional, defaults to 'C', celcius)
+        """
+        super(SetPointBeer, self).__init__(name, **kwargs)
+        if 'datasource' not in self._config:
             raise RuntimeError("datasource is required in kwargs")
-        if not 'identifier' in self._config:
+        if 'identifier' not in self._config:
             raise RuntimeError("no identifier specified in beer config")
         try:
             self._config['set_point'] = float(self._config['set_point'])
@@ -118,23 +140,28 @@ class SetPointBeer(AbstractBeer):
 
     @property
     def set_point(self):
+        "Returns the configured set point for this beer"
         return self._config['set_point']
 
     @set_point.setter
     def set_point(self, value):
-        self.log.info("configuring set point at {}".format(value))
-        self._config['set_point'] = value
+        "Configure the set point for this beer"
+        self.log.info("configuring set point at %f", float(value))
+        self._config['set_point'] = float(value)
 
     @property
     def tolerance(self):
+        "Returns the configured temperature tolerance for this beer"
         return self._config['tolerance']
 
     @tolerance.setter
     def tolerance(self, value):
-        self.log.info("configuring set point tolerance at {}".format(value))
+        "Set the temperature tolerance for this beer"
+        self.log.info("configuring set point tolerance at %f", float(value))
         self._config['tolerance'] = value
 
     def _get_temperature(self):
+        "Get the current temperature of the beer, log error if old"
         data = self.datasource.get_temperature(self._config['identifier'])
         self.check_timestamp(data['timestamp'])
         return data['temperature']
@@ -155,11 +182,15 @@ class SetPointBeer(AbstractBeer):
             return False
         if self.set_point > (temp + self.tolerance):
             self.log.info(
-                "heating required (temp={}, set_point={}, tolerance={})".format(
-                    temp, self.set_point, self.tolerance))
+                "heating required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
+                temp, self.set_point, self.tolerance)
             return True
 
     def requires_cooling(self):
+        """
+        Returns True if the beer is warmer than the set point by more than
+        the configured tolerance, False otherwise.
+        """
         if self.set_point is None:
             return False
         try:
@@ -169,8 +200,8 @@ class SetPointBeer(AbstractBeer):
             return False
         if (self.set_point + self.tolerance) < temp:
             self.log.info(
-                "cooling required (temp={}, set_point={}, tolerance={})".format(
-                    temp, self.set_point, self.tolerance))
+                "cooling required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
+                temp, self.set_point, self.tolerance)
             return True
 
 class LinearBeer(AbstractBeer):
@@ -207,7 +238,7 @@ class LinearBeer(AbstractBeer):
         - end_set_point (where to finish the beer)
         - tolerance (optional, defaults to 0.5 degrees)
         """
-        super(self.__class__, self).__init__(name, **kwargs)
+        super(LinearBeer, self).__init__(name, **kwargs)
         try:
             self.original_gravity = float(self._config['original_gravity'])
         except KeyError:
@@ -250,9 +281,10 @@ class LinearBeer(AbstractBeer):
         target = self.current_target_temperature(progress)
         if (target - current_temp) > self.tolerance:
             self.log.info(
-                "heating required (gravity={:.2f}, progress={:.1f}%, temp={:.1f}, target_temp={:.1f}, tolerance={:.1f})".format(
-                    gravity, progress*100, current_temp, target, self.tolerance
-                ))
+                ("heating required (gravity=%.2f, progress=%.2fpct, "
+                 "temp=%.1f, target_temp=%.1f, tolerance=%.2f)"),
+                gravity, progress*100, current_temp, target, self.tolerance
+                )
             return True
         return False
 
@@ -267,9 +299,10 @@ class LinearBeer(AbstractBeer):
         target = self.current_target_temperature(progress)
         if (current_temp - target) > self.tolerance:
             self.log.info(
-                "cooling required (gravity={:.2f}, progress={:.1f}%, temp={:.1f}, target_temp={:.1f}, tolerance={:.1f})".format(
-                    gravity, progress*100, current_temp, target, self.tolerance
-                ))
+                ("cooling required (gravity=%.2f, progress=%.2fpct, "
+                 "temp=%.1f, target_temp=%.1f, tolerance=%.2f)"),
+                gravity, progress*100, current_temp, target, self.tolerance
+                )
             return True
         return False
 

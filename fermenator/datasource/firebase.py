@@ -1,9 +1,18 @@
-import pyrebase
+"""
+This package includes the firebase-related classes which act as datasources for
+configuration or beer data.
+"""
 import logging
+import pyrebase
+from fermenator.conversions import (
+    temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime)
 from . import DataSource, DataNotFoundError
-from fermenator.conversions import temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime
 
 class FirebaseDataSource(DataSource):
+    """
+    Implement a :class:`fermenator.datasource.DataSource` object that provides
+    the general methods for accessing firebase.
+    """
 
     def __init__(self, name, **kwargs):
         """
@@ -19,6 +28,7 @@ class FirebaseDataSource(DataSource):
             }
 
         """
+        super(FirebaseDataSource, self).__init__(name, **kwargs)
         self._config = kwargs
         self._fb_hndl = None
         self.log = logging.getLogger(
@@ -28,6 +38,10 @@ class FirebaseDataSource(DataSource):
 
     @property
     def _handle(self):
+        """
+        Returns an instance of the firebase database object. Caches the object
+        locally after the first retrieval.
+        """
         if not self._fb_hndl:
             self._fb_hndl = pyrebase.initialize_app(self._config).database()
         return self._fb_hndl
@@ -38,13 +52,26 @@ class FirebaseDataSource(DataSource):
         """
         keypath = '/' + '/'.join(key) + '/'
         res = self._handle.child(keypath).get().val()
-        if type(res) == 'NoneType':
+        if isinstance(res, None):
             raise DataNotFoundError('no data found at key {}'.format(keypath))
         return res
 
 class BrewConsoleFirebaseDS(FirebaseDataSource):
+    """
+    Implements a version of the :class:`FirebaseDataSource` class that provides
+    wrappers and logic specific to beer data stored within, such as the path
+    to gravity and temperature data, timestamp handling, etc.
+    """
 
     def __init__(self, name, **kwargs):
+        """
+        This class requires all the same arguments as
+        :class:`FirebaseDataSource`, but adds the following:
+
+        - gravity_unit (P or SG)
+        - temperature_unit (C or F)
+        """
+        super(BrewConsoleFirebaseDS, self).__init__(name, **kwargs)
         try:
             self.gravity_unit = kwargs['gravity_unit'].upper()
             del kwargs['gravity_unit']
@@ -55,13 +82,12 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
             del kwargs['temperature_unit']
         except KeyError:
             self.temperature_unit = 'C'
-        super(self.__class__, self).__init__(name, **kwargs)
 
     def get_gravity(self, identifier):
         """
         Returns the most recent gravity reading for the item at `identifier`
         """
-        val = super(self.__class__, self).get(
+        val = super(BrewConsoleFirebaseDS, self).get(
             ('brewery', identifier, 'readings', 'gravity'))
         rdata = dict()
         rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
@@ -74,8 +100,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         """
         Returns the most recent temperture reading for the item at `identifier`
         """
-        # TODO: use different temperture source
-        val = super(self.__class__, self).get(
+        val = super(BrewConsoleFirebaseDS, self).get(
             ('brewery', identifier, 'readings', 'tilt_temperature'))
         rdata = dict()
         rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])

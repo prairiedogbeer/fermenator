@@ -1,18 +1,43 @@
+"""
+The classes in this module deal with the loading of configuration as well as
+the actual running of the software, because all classes descending from
+:class:`FermenatorConfig` are in charge of reading the configuration from some
+datastore, rendering it into objects, and starting monitoring for each beer
+object in a separate thread.
+"""
+import logging
+import gc
 import sys
 import os.path
 import time
 from yaml import load as load_yaml
-import logging
-import gc
 
-from fermenator.datasource.gsheet import *
-from fermenator.datasource.firebase import *
-from fermenator.relay import *
-from fermenator.beer import *
-from fermenator.manager import *
+from fermenator.datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
+from fermenator.datasource.firebase import (
+    FirebaseDataSource, BrewConsoleFirebaseDS)
+from fermenator.relay import Relay, GPIORelay
+from fermenator.beer import AbstractBeer, SetPointBeer, LinearBeer
+from fermenator.manager import ManagerThread
 
 class ClassNotFoundError(RuntimeError):
+    """
+    Raise this when dynamic class loading is unable to find a class specified
+    in configuration
+    """
     pass
+
+class ConfigNotFoundError(RuntimeError):
+    "Raise this exception when no configuration can be found/loaded"
+    pass
+
+def bootstrap():
+    """
+    Returns a fully configured :class:`FermenatorConfig` object or one of its
+    descendants based on bootstrap configuration.
+    """
+    config = load_bootstrap_configuration()
+    config_klass = get_class_by_name(config['bootstrap']['type'])
+    return config_klass(config['bootstrap']['name'], **config['bootstrap']['config'])
 
 def get_class_by_name(name):
     "Returns a configuration class by name (not an instance)"
@@ -21,17 +46,27 @@ def get_class_by_name(name):
     raise ClassNotFoundError("no configuration class {} could be found".format(name))
 
 def str_to_class(classname):
-    return getattr(sys.modules[__name__], classname)
+    "Returns a reference to any class in the current scope"
+    try:
+        return getattr(sys.modules[__name__], classname)
+    except NameError:
+        raise ClassNotFoundError(
+            "no class {} was found in the current scope".format(
+                classname
+            ))
 
 def garbage_collect():
     """
     Run a two-pass garbage collection
     """
-    log = logging.getLogger("{}.garbage_collect".format(__name__)).debug("collecting")
+    logging.getLogger("{}.garbage_collect".format(__name__)).debug("collecting")
     for _ in range(2):
         gc.collect()
 
 def sheet_data_to_dict(sheet_data):
+    """
+    Convert data retrieved from a configuration-style spreadsheet to a dict
+    """
     dict_config = dict()
     for row in sheet_data:
         item_name = row[0].strip()
@@ -47,11 +82,12 @@ def sheet_data_to_dict(sheet_data):
             dict_config[item_name]['config'][key] = value
     return dict_config
 
-class ConfigNotFoundError(RuntimeError):
-    "Raise this exception when no configuration can be found/loaded"
-    pass
+#: A tuple of default bootstrap configuration file locations
+BOOTSTRAP_CONFIG_FILES = (
+    '.fermenator', '~/.fermenator/config', '/etc/fermenator/config'
+)
 
-class ConfigLoader():
+def load_bootstrap_configuration():
     """
     Look for YaML configuration in local files, using the first file found,
     in the following order:
@@ -61,40 +97,15 @@ class ConfigLoader():
     - ~/.fermenator/config (home directory)
     - /etc/fermenator/config (system configuration directory)
 
-    Once config is found, parse it into a dictionary and expose config data
-    through simple methods.
+    Once config is found, parse it into a dictionary and return it
     """
-    #: A tuple of default configuration file locations
-    CONFIG_FILES = (
-        '.fermenator', '~/.fermenator/config', '/etc/fermenator/config'
-    )
-
-    def __init__(self, config_file=None):
-        self.log = logging.getLogger(
-            "{}.{}".format(
-            self.__class__.__module__,
-            self.__class__.__name__))
-        self.config_locations = self.CONFIG_FILES
-        if config_file:
-            self.config_locations = (config_file,)
-        self._config = self._load()
-
-    def _load(self):
-        for location in self.config_locations:
-            try:
-                with open(os.path.expanduser(location)) as yfile:
-                    self.log.info("loading configuration from {}".format(location))
-                    return load_yaml(yfile)
-            except FileNotFoundError:
-                continue
-        raise ConfigNotFoundError("No configuration could be found/loaded")
-
-    def config(self):
-        """
-        Returns the configuration read from config files
-        """
-        # TODO: Make this return immutable data or a deep copy of the dict
-        return self._config
+    for location in BOOTSTRAP_CONFIG_FILES:
+        try:
+            with open(os.path.expanduser(location)) as yfile:
+                return load_yaml(yfile)
+        except FileNotFoundError:
+            continue
+    raise ConfigNotFoundError("No configuration could be found/loaded")
 
 class FermenatorConfig():
     """
@@ -111,8 +122,8 @@ class FermenatorConfig():
     def __init__(self, name, **kwargs):
         self.log = logging.getLogger(
             "{}.{}.{}".format(
-            self.__class__.__module__,
-            self.__class__.__name__, name))
+                self.__class__.__module__,
+                self.__class__.__name__, name))
         self._config = kwargs
         self._relays = dict()
         self._beers = dict()
@@ -140,14 +151,11 @@ class FermenatorConfig():
         reverse order of creation.
         """
         self.log.debug("disassembling")
-        for manager in self._managers.keys():
-            self._managers[manager].stop()
-            self._managers[manager].join(30.0)
-            if self._managers[manager].isAlive():
-                self.log.error("manager thread {} could not be stopped".format(manager))
-                # TODO: deal with this problem smartly
-        # force delete the reference to the old objects, should result
-        # in a __delete__ call on each
+        for name, obj in self._managers.items():
+            obj.stop()
+            obj.join(30.0)
+            if obj.isAlive():
+                self.log.error("manager thread %s could not be stopped", name)
         self._managers = None
         self._beers = None
         self._datasources = None
@@ -167,8 +175,8 @@ class FermenatorConfig():
                     self.log.error("no managers found after assembly, nothing to do")
                     self.disassemble()
                     return None
-                for manager in self._managers.keys():
-                    self._managers[manager].start()
+                for _, obj in self._managers.items():
+                    obj.start()
                 fresh = True
                 while fresh:
                     time.sleep(self.refresh_interval)
@@ -179,11 +187,13 @@ class FermenatorConfig():
         except KeyboardInterrupt:
             self.disassemble()
 
-    def import_yaml_file(self, filename):
-        raise NotImplementedError("import_yaml_file is not implemented for this config datasource")
-
     def is_config_changed(self):
-        raise NotImplementedError("is_config_changed needs to be implemented in subclass")
+        """
+        Returns True if configuration has changed. Must be implemented in a
+        subclass.
+        """
+        raise NotImplementedError(
+            "is_config_changed needs to be implemented in subclass")
 
     def get_relay_config(self):
         """
@@ -210,13 +220,17 @@ class FermenatorConfig():
         raise NotImplementedError("get_relay_config must be implemented in subclass")
 
     def get_relays(self):
-        # TODO: there is a bug somewhere here where gdrive isn't set up initially
+        """
+        Assembles and returns a dictionary of relay objects based on
+        configuration data. Caches the results locally, and will rebuild the
+        dictionary if configuration changes are detected.
+        """
         if self._relays and not self.is_config_changed():
             return self._relays
         dict_data = self.get_relay_config()
-        for relay in dict_data.keys():
-            self.log.debug("loading relay {}".format(relay))
-            self._relays[relay] = self.objectify_dict(relay, dict_data[relay], default_type=Relay)
+        for name in dict_data:
+            self.log.debug("loading relay %s", name)
+            self._relays[name] = self.objectify_dict(name, dict_data[name], default_type=Relay)
         return self._relays
 
     def get_datasource_config(self):
@@ -238,12 +252,17 @@ class FermenatorConfig():
         raise NotImplementedError("get_datasource_config needs to be implemented")
 
     def get_datasources(self):
+        """
+        Assembles and returns a dictionary of datasource objects based on
+        configuration data. Caches the results locally, and will rebuild the
+        dictionary if configuration changes are detected.
+        """
         if self._datasources and not self.is_config_changed():
             return self._datasources
         dict_data = self.get_datasource_config()
-        for objname in dict_data.keys():
-            self.log.debug("loading datasource {}".format(objname))
-            self._datasources[objname] = self.objectify_dict(objname, dict_data[objname])
+        for name in dict_data:
+            self.log.debug("loading datasource %s", name)
+            self._datasources[name] = self.objectify_dict(name, dict_data[name])
         return self._datasources
 
     def get_beer_configuration(self):
@@ -266,11 +285,16 @@ class FermenatorConfig():
         raise NotImplementedError("get_beer_configuration needs to be implemented")
 
     def get_beers(self):
+        """
+        Assembles and returns a dictionary of beer objects based on
+        configuration data. Caches the results locally, and will rebuild the
+        dictionary if configuration changes are detected.
+        """
         if self._beers and not self.is_config_changed():
             return self._beers
         dict_data = self.get_beer_configuration()
-        for objname in dict_data.keys():
-            self.log.debug("loading beer {}".format(objname))
+        for objname in dict_data:
+            self.log.debug("loading beer %s", objname)
             self._beers[objname] = self.objectify_dict(objname, dict_data[objname])
         return self._beers
 
@@ -292,11 +316,16 @@ class FermenatorConfig():
         raise NotImplementedError("get_manager_configuration needs implementation")
 
     def get_managers(self):
+        """
+        Assembles and returns a dictionary of manager objects based on
+        configuration data. Caches the results locally, and will rebuild the
+        dictionary if configuration changes are detected.
+        """
         if self._managers and not self.is_config_changed():
             return self._managers
         dict_data = self.get_manager_configuration()
-        for objname in dict_data.keys():
-            self.log.debug("loading manager {}".format(objname))
+        for objname in dict_data:
+            self.log.debug("loading manager %s", objname)
             self._managers[objname] = self.objectify_dict(
                 objname, dict_data[objname], default_type=ManagerThread)
         return self._managers
@@ -305,9 +334,7 @@ class FermenatorConfig():
         "Converts a dictionary of object configuration to an object"
         klass = default_type
         if 'type' in dict_data:
-            klass = str_to_class(dict_data['type'])
-        if not klass:
-            raise RuntimeError("no class could be found for {}".format(name))
+            klass = get_class_by_name(dict_data['type'])
         if issubclass(klass, ManagerThread):
             dict_data = self._vivify_config_relays(dict_data)
             dict_data = self._vivify_config_beers(dict_data)
@@ -321,44 +348,52 @@ class FermenatorConfig():
         )
 
     def _vivify_config_datasources(self, dict_data):
-        if 'datasource' in dict_data['config']:
-            if dict_data['config']['datasource'] in self._datasources:
-                dict_data['config']['datasource'] = self._datasources[
-                    dict_data['config']['datasource']]
-            else:
-                raise RuntimeError(
-                    "datasource {} is specified in beer {}, but not configured".format(
-                        dict_data['config']['datasource'], name))
+        """
+        Pass this method class configuration data (as would be provided to
+        **kwargs when vivifying a class), and it will search for any
+        specified datasources, replacing textual links with a true object
+        representing that datasource. Not safe to run twice on the same data.
+        """
+        try:
+            dict_data['config']['datasource'] = self._datasources[
+                dict_data['config']['datasource']]
+        except KeyError:
+            raise RuntimeError("error in datasource configuration for beer")
         return dict_data
 
     def _vivify_config_beers(self, dict_data):
-        if 'beer' in dict_data['config']:
-            if dict_data['config']['beer'] in self._beers:
-                dict_data['config']['beer'] = self._beers[
-                    dict_data['config']['beer']]
-            else:
-                raise RuntimeError(
-                    "beer {} is specified in manager {}, but not configured".format(
-                        dict_data['config']['beer'], name))
+        """
+        Pass this method class configuration data (as would be provided to
+        **kwargs when vivifying a class), and it will search for any
+        specified beers, replacing textual links with a true object
+        representing that beer. Not safe to run twice on the same data.
+        """
+        try:
+            dict_data['config']['beer'] = self._beers[
+                dict_data['config']['beer']]
+        except KeyError:
+            raise RuntimeError("error in manager configuration related to beer")
         return dict_data
 
     def _vivify_config_relays(self, dict_data):
+        """
+        Pass this method class configuration data (as would be provided to
+        **kwargs when vivifying a class), and it will search for any
+        specified relays, replacing textual links with a true object
+        representing that relay. Not safe to run twice on the same data.
+        """
         if 'active_cooling_relay' in dict_data['config']:
-            if dict_data['config']['active_cooling_relay'] in self._relays:
+            try:
                 dict_data['config']['active_cooling_relay'] = self._relays[
                     dict_data['config']['active_cooling_relay']]
-            else:
-                raise RuntimeError(
-                    "active_cooling_relay {} is specified in manager {}, but not configured".format(
-                        dict_data['config']['active_cooling_relay'], name))
+            except KeyError:
+                raise RuntimeError("error in active_cooling_relay config")
         if 'active_heating_relay' in dict_data['config']:
-            if dict_data['config']['active_heating_relay'] in self._relays:
+            try:
                 dict_data['config']['active_heating_relay'] = self._relays[
                     dict_data['config']['active_heating_relay']]
-            else:
-                raise RuntimeError(
-                    "active_heating_relay {} is specified in manager {}, but not configured".format(
-                        dict_data['config']['active_heating_relay'], name))
+            except KeyError:
+                raise RuntimeError("error in active_heating_relay config")
         return dict_data
 
 class DictionaryConfig(FermenatorConfig):
@@ -377,18 +412,23 @@ class DictionaryConfig(FermenatorConfig):
     """
 
     def get_relay_config(self):
+        "Returns the `relays` section of the dictionary config"
         return self._config['relays']
 
     def get_datasource_config(self):
+        "Returns the `datasources` section of the dictionary config"
         return self._config['datasources']
 
     def get_beer_configuration(self):
+        "Returns the `beers` section of the dictionary config"
         return self._config['beers']
 
     def get_manager_configuration(self):
+        "Returns the `managers` section of the dictionary config"
         return self._config['managers']
 
     def is_config_changed(self):
+        "Returns False always because config is loaded once from the file"
         return False
 
 class GoogleSheetConfig(FermenatorConfig):
@@ -401,31 +441,55 @@ class GoogleSheetConfig(FermenatorConfig):
     """
 
     def __init__(self, name, **kwargs):
-        super(self.__class__, self).__init__(self, name, **kwargs)
-        if not 'spreadsheet_id' in kwargs:
+        """
+        Provide a spreadsheet_id as kwarg to this class, as well as any kwargs
+        supported by the parent class.
+        """
+        super(GoogleSheetConfig, self).__init__(self, name, **kwargs)
+        if 'spreadsheet_id' not in kwargs:
             raise RuntimeError("no configuration spreadsheet id provided")
         self._gs = GoogleSheet("{}-spreadsheet".format(name), **kwargs)
 
     def is_config_changed(self):
-        return self._gs._is_spreadsheet_changed()
+        """
+        Checks the google drive api to determine if the underlying spreadsheet
+        content has changed, returns True if it has.
+        """
+        return self._gs.is_spreadsheet_changed()
 
     def get_relay_config(self):
-        return sheet_data_to_dict(self.get_sheet_range_values(
+        """
+        Retreives the Relay information from the underlying spreadsheet.
+        """
+        return sheet_data_to_dict(self._gs.get_sheet_range_values(
             range='Relay!A2:C'))
 
     def get_datasource_config(self):
-        return sheet_data_to_dict(self.get_sheet_range_values(
+        """
+        Retreives the Datasource information from the underlying spreadsheet.
+        """
+        return sheet_data_to_dict(self._gs.get_sheet_range_values(
             range='DataSource!A2:C'))
 
     def get_beer_configuration(self):
-        return sheet_data_to_dict(self.get_sheet_range_values(
+        """
+        Retreives the Beer information from the underlying spreadsheet.
+        """
+        return sheet_data_to_dict(self._gs.get_sheet_range_values(
             range='Beer!A2:C'))
 
     def get_manager_configuration(self):
-        return sheet_data_to_dict(self.get_sheet_range_values(
+        """
+        Retreives the Manager information from the underlying spreadsheet.
+        """
+        return sheet_data_to_dict(self._gs.get_sheet_range_values(
             range='Manager!A2:C'))
 
 class FirebaseConfig(FermenatorConfig):
+    """
+    Read configuration data from a Firebase datastore and assemble an operating
+    environment.
+    """
 
     #: A prefix under which all configuration values should be found
     PREFIX = ('config', 'fermenator')
@@ -437,47 +501,66 @@ class FirebaseConfig(FermenatorConfig):
         will look at the path /config/fermenator for configuration specific to
         this app.
         """
-        super(self.__class__, self).__init__(name, **kwargs)
+        super(FirebaseConfig, self).__init__(name, **kwargs)
         self._fb = FirebaseDataSource("{}-db".format(name), **kwargs)
         self._version = self.upstream_version()
-        self.log.info("using config version {}".format(self._version))
+        self.log.info("using config version %s", self._version)
 
     def upstream_version(self):
         "Returns the current configuration version"
         return self._fb.get(self.PREFIX + ('version',))
 
     def is_config_changed(self):
+        """
+        Checks the version key in the configuration store and returns True if
+        the version has changed since config was last loaded
+        """
         if self._version == self.upstream_version():
             return False
-        self.log.debug("config changed to version {}".format(self._version))
+        self.log.debug("config changed to version %s", self._version)
         return True
 
     def get_relay_config(self):
+        """
+        Retrieve relay configuration from the datastore
+        """
         data = self._fb.get(self.PREFIX + ('relays',))
         if data:
             return data
         return {}
 
     def get_datasource_config(self):
+        """
+        Retrieve datasource configuration from the datastore
+        """
         data = self._fb.get(self.PREFIX + ('datasources',))
         if data:
             return data
         return {}
 
     def get_beer_configuration(self):
+        """
+        Retrieve beer configuration from the datastore
+        """
         data = self._fb.get(self.PREFIX + ('beers',))
         if data:
             return data
         return {}
 
     def get_manager_configuration(self):
+        """
+        Retrieve manager configuration from the datastore
+        """
         data = self._fb.get(self.PREFIX + ('managers',))
         if data:
             return data
         return {}
 
     def import_yaml_file(self, filename):
-        self.log.info("importing config from {}".format(filename))
+        """
+        Import dictionary config data from a YaML file.
+        """
+        self.log.info("importing config from %s", filename)
         import yaml
         with open(filename) as confyaml:
             cdata = yaml.load(confyaml)

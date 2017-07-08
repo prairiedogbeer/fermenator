@@ -13,7 +13,7 @@ class DataSource(object):
         """
         pass
 
-    def get(self, key, time_limit_s=60*15):
+    def get(self, key):
         """
         Given a hierarchical key name in the form of an iterable, return an interable
         handle to the dataset found at the key. Eg::
@@ -23,8 +23,6 @@ class DataSource(object):
             for point in points:
                 print(point)
 
-        Time series data will always be returned in reverse-time order (newest first).
-        Defaults to 15-minutes worth of data points.
         """
         pass
 

@@ -1,3 +1,6 @@
+"""
+This library contains functions for performing basic conversions
+"""
 import datetime
 
 def temp_f_to_c(temp_f):
@@ -13,12 +16,20 @@ def sg_to_plato(sg):
     return 135.997 * sg**3 - 630.272 * sg**2 + 1111.14 * sg - 616.868
 
 def rfc3339_timestamp_to_datetime(ts_string):
+    """
+    Given a string in rfc3339 format, return a datetime object.
+    Expects a timestamp like 2017-07-07T11:05:12.001241
+    """
     return datetime.datetime.strptime(
         ts_string,
         '%Y-%m-%dT%H:%M:%S.%f'
     )
 
 def unix_timestmap_to_datetime(timestamp):
+    """
+    Given a unix timestamp of the form 1412312114.1241241241 (with or without
+    decimal portions), return a datetime object.
+    """
     return datetime.datetime.utcfromtimestamp(timestamp)
 
 SPREADSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)

@@ -1,6 +1,9 @@
-from . import DataSource, DataNotFoundError
+"""
+This module contains the datasource for reading temperature and gravity data
+out of carbon/graphite.
+"""
 import requests
-from collections import deque
+from . import DataSource, DataNotFoundError
 
 class GraphiteDataSource(DataSource):
     """
@@ -9,8 +12,16 @@ class GraphiteDataSource(DataSource):
     (carbon).
     """
 
-    def __init__(self, **kwargs):
-        if not 'url' in kwargs:
+    def __init__(self, name, **kwargs):
+        """
+        Provide this method with the following:
+
+        - url (the base url to graphite)
+        - user (optional, password is required if user is used)
+        - password (optional)
+        """
+        super(GraphiteDataSource, self).__init__(name, **kwargs)
+        if 'url' not in kwargs:
             raise RuntimeError("url must be provided in kwargs")
         else:
             self.url = kwargs['url'].rstrip('/')
@@ -20,8 +31,12 @@ class GraphiteDataSource(DataSource):
         else:
             self.auth = None
 
-    def get(self, key, time_limit_s=60*5):
-        url = self._build_url(key, time_limit_s)
+    def get(self, key):
+        """
+        Given a hierarchical key name in the form of an iterable, return a
+        handle to the dataset found at the key.
+        """
+        url = self._build_url(key, 60*5)
         result = requests.get(url, auth=self.auth)
         try:
             raw_results = result.json()[0]['datapoints']

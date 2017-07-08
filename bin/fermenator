@@ -52,13 +52,10 @@ def main():
     args = docopt(__doc__, version="fermenator 0.1")
     set_up_logging(args)
 
-    # load configuration object (dynamic class loader)
-    config = fermenator.config.ConfigLoader().config()
-    config_klass = fermenator.config.get_class_by_name(config['bootstrap']['type'])
-    config_obj = config_klass(config['bootstrap']['name'], **config['bootstrap']['config'])
+    f_man = fermenator.config.bootstrap()
 
     if args['run']:
-        config_obj.run()
+        f_man.run()
 
 
 if __name__ == "__main__":
