@@ -52,7 +52,7 @@ class FirebaseDataSource(DataSource):
         """
         keypath = '/' + '/'.join(key) + '/'
         res = self._handle.child(keypath).get().val()
-        if isinstance(res, None):
+        if res is None:
             raise DataNotFoundError('no data found at key {}'.format(keypath))
         return res
 

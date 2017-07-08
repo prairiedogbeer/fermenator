@@ -334,7 +334,7 @@ class FermenatorConfig():
         "Converts a dictionary of object configuration to an object"
         klass = default_type
         if 'type' in dict_data:
-            klass = get_class_by_name(dict_data['type'])
+            klass = str_to_class(dict_data['type'])
         if issubclass(klass, ManagerThread):
             dict_data = self._vivify_config_relays(dict_data)
             dict_data = self._vivify_config_beers(dict_data)

@@ -6,7 +6,7 @@ class DataSource(object):
     subclass: :meth:`get` and :meth:`set`.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, name, **kwargs):
         """
         This method will be used in class implementations to configure the datasource
         object.
