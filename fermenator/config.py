@@ -103,7 +103,7 @@ def load_bootstrap_configuration():
         try:
             with open(os.path.expanduser(location)) as yfile:
                 return load_yaml(yfile)
-        except FileNotFoundError:
+        except (FileNotFoundError, IsADirectoryError):
             continue
     raise ConfigNotFoundError("No configuration could be found/loaded")
 
