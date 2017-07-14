@@ -119,5 +119,7 @@ class GPIORelay(Relay):
         Turn off the relay at the GPIO pin associated with the instance.
         """
         super(GPIORelay, self).off()
-        if self._device:
+        try:
             self._device.off()
+        except AttributeError:
+            pass
