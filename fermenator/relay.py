@@ -83,9 +83,13 @@ class GPIORelay(Relay):
             of it (such as refrigeration units). Use at your own risk.
 
         """
-        super(GPIORelay, self).__init__(name, **kwargs)
         if "gpio_pin" not in kwargs:
             raise RuntimeError("No gpio_pin specified in relay configuration")
+        self._device = gpiozero.DigitalOutputDevice(
+            pin=int(self._config['gpio_pin']),
+            active_high=False,  # relay boards typical operate active low
+            initial_value=False # keep relay turned off initially
+        )
         if 'duty_cycle' in kwargs:
             if 'cycle_time' in kwargs:
                 self._duty_cycle = float(kwargs['duty_cycle'])
@@ -96,11 +100,7 @@ class GPIORelay(Relay):
                 self._duty_cycle = None
         else:
             self._duty_cycle = None
-        self._device = gpiozero.DigitalOutputDevice(
-            pin=int(self._config['gpio_pin']),
-            active_high=False,  # relay boards typical operate active low
-            initial_value=False # keep relay turned off initially
-        )
+        super(GPIORelay, self).__init__(name, **kwargs)
 
     def on(self):
         """
