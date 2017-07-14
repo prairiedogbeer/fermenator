@@ -23,7 +23,6 @@ class Relay(object):
         self._config = kwargs
         self.name = name
         self._state = None
-        self.off()
 
     def __del__(self):
         self.log.debug("destructing")
@@ -101,6 +100,7 @@ class GPIORelay(Relay):
         else:
             self._duty_cycle = None
         super(GPIORelay, self).__init__(name, **kwargs)
+        self.off()
 
     def on(self):
         """
