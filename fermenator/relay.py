@@ -72,7 +72,9 @@ class GPIORelay(Relay):
         pass a `duty_cycle` and `cycle_time` parameter to enable duty-cycling
         of the relay. `duty_cycle` should be a floating-point percentage of on time
         and `cycle_time` should be the total time for each duty cycle in
-        floating-point seconds.
+        floating-point seconds. You can also provide `active_high` (boolean) to
+        determine whether or not the relay will be sent a high (1) signal to
+        turn on, or a low(0), defaults to True.
 
         .. warning::
 
@@ -85,9 +87,13 @@ class GPIORelay(Relay):
         super(GPIORelay, self).__init__(name, **kwargs)
         if "gpio_pin" not in kwargs:
             raise RuntimeError("No gpio_pin specified in relay configuration")
+        try:
+            active_high = kwargs['active_high']
+        except KeyError:
+            active_high = True
         self._device = gpiozero.DigitalOutputDevice(
             pin=int(self._config['gpio_pin']),
-            active_high=False,  # relay boards typical operate active low
+            active_high=active_high,
             initial_value=False # keep relay turned off initially
         )
         if 'duty_cycle' in kwargs:
