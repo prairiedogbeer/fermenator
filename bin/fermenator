@@ -4,6 +4,7 @@ fermenator - monitor and manage fermentation
 
 Usage:
   fermenator run [options]
+  fermenator init [options]
   fermenator -h | --help
   fermenator --version
 
@@ -13,6 +14,12 @@ Options:
   -v, --verbose     Enable verbose output logging
   -x, --xtra-verbose  Enable super-verbose logging
   -l, --logfile=<x>  Log to the specified file instead of screen
+
+Commands:
+  run:  Run the suite based on the configuraton file found in one of the default
+        locations
+  init: Initialize relay settings to ensure that relays are set OFF. Run this at
+        boot time because RPi sets some pins to high and turns on relays.
 """
 from docopt import docopt
 import logging
@@ -56,7 +63,8 @@ def main():
 
     if args['run']:
         f_man.run()
-
+    if args['init']:
+        f_man.get_relays()
 
 if __name__ == "__main__":
     main()
