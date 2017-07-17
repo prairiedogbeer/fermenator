@@ -213,7 +213,7 @@ class LinearBeer(AbstractBeer):
     for a 20 plato apparent attenuation. The brewmaster wants the beer to start
     at 16 celcius and finish out at 20 celcius, for a 4 degree spread. On day 0,
     with the beer at 25P, the beer will be held at 16 celcius. When the beer
-    reaches 20P, 1/4 of planned attenuation, the beer will be held at 17 celcius.
+    reaches 20P, 1/4 of planned attenuation, it will be held at 17 celcius.
     As the beer hits 15P, half way to attenuation, it will be at 18 celicus.
 
     If the beer starts at a higher gravity than anticipated, the configured lower
