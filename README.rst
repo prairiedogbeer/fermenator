@@ -52,9 +52,7 @@ configuration datastore is used, one beer is being monitored, and a
 BrewConsoleFirebaseDS datastore is read for all beer-specific instrumentation
 data. The `DictionaryConfig` config datastore type is used and allows the user
 to specify the entire configuration as sub-keys under `config` rather than
-relying on a separate datastore for configuration.
-
-..code:: yaml
+relying on a separate datastore for configuration::
 
     bootstrap:
       name: brewconsoleconfig
@@ -165,15 +163,16 @@ for the DataSource sheet, the first column would be `datasource_name`. The
 second column in each sheet should be titled 'key', and the third column should
 be titled 'value'. For example, a Manger sheet may look like this:
 
-==================  ============          ====================
+==================  ====================  ====================
 manager_name        key                   value
-==================  ============          ====================
+==================  ====================  ====================
 French Saison       beer                  PB0053
 French Saison       active_cooling_relay  CoolingRelay1
 French Saison       active_heating_relay  HeatingRelay1
 French Saison       polling_frequency     300
 French Saison       active_heating        TRUE
 French Saison       active_cooling        TRUE
+==================  ====================  ====================
 
 As you can see, the manager name must be repeated for every line of config
 specific to that manager. Keys exactly match those in the dictionary config
@@ -208,16 +207,14 @@ spreadsheet. Whenever an update is found, the existing configuration and all
 objects (Managers, Beers, etc) will be torn down and reconstructed based on
 the latest sheet data.
 
-.. warning::
-
-    GoogleSheetConfig doesn't allow for atomic changes to configuration. It is
-    possible that you could be half-way through updating configuration when new
-    objects are constructed, leading to errors in the software. It is
-    recommended that you update configuration in this order: Relays,
-    DataSources, Beers, Managers, and set fermenator to run under a manager
-    or shell script in an infinite loop, in case an exception causes it to
-    shut down. If you want a more robust remote configuration, try one of the
-    others below.
+Warning: GoogleSheetConfig doesn't allow for atomic changes to configuration. It is
+possible that you could be half-way through updating configuration when new
+objects are constructed, leading to errors in the software. It is
+recommended that you update configuration in this order: Relays,
+DataSources, Beers, Managers, and set fermenator to run under a manager
+or shell script in an infinite loop, in case an exception causes it to
+shut down. If you want a more robust remote configuration, try one of the
+others below.
 
 FirebaseConfig
 ~~~~~~~~~~~~~~
@@ -235,9 +232,7 @@ Each of the keys above exactly match the structure found in the beginning of
 this section.
 
 FirebaseConfig also requires information about how it will access the datastore,
-via the following keys in the `config` section of bootstrap:
-
-..code:: yaml
+via the following keys in the `config` section of bootstrap::
 
     bootstrap:
       name: brewconsoleconfig
@@ -288,9 +283,7 @@ Managers always try to shut down any managed relays when they shut down.
 
 Here is an example of a complete manager configuration, which sets the manager
 name (Dark Strong), and provides config. The `beer` key must match the name of
-a Beer object defined elsewhere in the config.
-
-..code:: yaml
+a Beer object defined elsewhere in the config::
 
     Dark Strong:
       config:
@@ -367,11 +360,9 @@ starting point temperature will be applied. Same in the reverse direction. Thus,
 at the end of fermentation, this class will behave more or less like a
 :class:`SetPointBeer`.
 
-.. note::
-
-    Nothing about this class requires that start_set_point is a lower temperature
-    than end_set_point. If you want to gradually cool a beer during the course of
-    fermentation, go for it.
+Note: Nothing about this class requires that start_set_point is a lower temperature
+than end_set_point. If you want to gradually cool a beer during the course of
+fermentation, go for it.
 
 This class supports the following config arguments in addition to those required
 by AbstractBeer:
@@ -410,9 +401,8 @@ arguments, but it provides the following abstract methods:
 FirebaseDataSource
 ~~~~~~~~~~~~~~~~~~
 Implementation of a DataSource that enables gets and sets against a Firebase
-database. This class takes the same arguments as FirebaseConfig:
+database. This class takes the same arguments as FirebaseConfig::
 
-..code:: yaml
     apiKey: <svc-acct-google-api-key>
     authDomain: <foo>.firebaseio.com
     databaseURL: https://<foo>.firebaseio.com
@@ -464,9 +454,7 @@ Three additional configuration arguments are supported:
 
 The set method is not currently implemented, since sets in graphite occur
 against a completely different service (carbon), which may exist on a totally
-different server. Gets work as follows:
-
-..code:: python
+different server. Gets work as follows::
 
     graphite = GraphiteDataSource(url='http://foo.bar.com')
     graphite.get((path, to, the, data))
