@@ -459,8 +459,8 @@ different server. Gets work as follows::
     graphite = GraphiteDataSource(url='http://foo.bar.com')
     graphite.get((path, to, the, data))
 
-  Data is returned in reverse-time-series order as a list of dictionaries, with
-  keys for `timestamp` (datetime object), and whatever else was requested.
+Data is returned in reverse-time-series order as a list of dictionaries, with
+keys for `timestamp` (datetime object), and whatever else was requested.
 
 GoogleSheet
 ~~~~~~~~~~~
