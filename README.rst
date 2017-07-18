@@ -536,3 +536,17 @@ These additional parameters are supported:
 - cycle_time: the total time for each duty cycle (on and off), optional
 - active_high: whether sending a 1 to the gpio port should turn on the relay,
   or not (defaults to True)
+
+MCP23017Relay
+~~~~~~~~~~~~~
+Implements a :class:`Relay` connected to a GPIO expansion IC, the
+MC23017Y. The MC23017 sits on the I2C bus and implements a simple GPIO-like
+interface.
+
+Supports the following configuration arguments:
+
+  - mx_pin: The pin # on the MCP23017 that controls the relay
+  - i2c_addr: Set the address of the MCP23017 on the i2c bus [default: 0x20]
+  - active_high: whether or not setting the pin high activates the relay
+    [default: True]
+  

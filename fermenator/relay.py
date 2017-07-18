@@ -4,6 +4,8 @@ devices used to enable or disable heating and cooling of beers.
 """
 import logging
 import gpiozero
+import Adafruit_GPIO
+import Adafruit_GPIO.MCP230xx
 
 ON = 1
 OFF = 0
@@ -129,3 +131,55 @@ class GPIORelay(Relay):
             self._device.off()
         except AttributeError:
             pass
+
+class MCP23017Relay(Relay):
+    """
+    Implements a :class:`Relay` connected to a GPIO expansion IC, the
+    MC23017Y. The MC23017 sits on the I2C bus and implements a simple GPIO-like
+    interface.
+    """
+
+    def __init__(self, name, **kwargs):
+        """
+        Provide the following kwargs:
+
+        - mx_pin: The pin # on the MCP23017 that controls the relay
+        - i2c_addr: Set the address of the MCP23017 on the i2c bus [default: 0x20]
+        - active_high: whether or not setting the pin high activates the relay
+          [default: True]
+
+        """
+        super(MCP23017Relay, self).__init__(name, **kwargs)
+        if "mx_pin" not in kwargs:
+            raise RuntimeError("No gpio_pin specified in relay configuration")
+        try:
+            self.mx_pin = kwargs['mx_pin']
+        except KeyError:
+            raise RuntimeError("mx_pin must be provided")
+        try:
+            self.high_signal = kwargs['active_high']
+        except KeyError:
+            self.high_signal = True
+        try:
+            self.i2c_addr = kwargs['i2c_addr']
+        except KeyError:
+            self.i2c_addr = 0x20
+        self._device = Adafruit_GPIO.MCP230xx.MCP23017(
+            self.i2c_addr
+        )
+        self._device.setup(self.mx_min, Adafruit_GPIO.OUT)
+        self.off()
+
+    def on(self):
+        """
+        Turn on the relay, taking into account active_high configuration.
+        """
+        super(MCP23017Relay, self).on()
+        self._device.output(self.mx_pin), self.high_signal)
+
+    def off(self):
+        """
+        Turn off the relay, taking into account active_high configuration.
+        """
+        super(MCP23017Relay, self).off()
+        self._device.output(self.mx_pin, not self.high_signal)

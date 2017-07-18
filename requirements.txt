@@ -6,3 +6,4 @@ rpi.gpio
 gpiozero
 pyrebase
 pyyaml
+Adafruit_GPIO
