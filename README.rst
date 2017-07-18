@@ -545,8 +545,7 @@ interface.
 
 Supports the following configuration arguments:
 
-  - mx_pin: The pin # on the MCP23017 that controls the relay
-  - i2c_addr: Set the address of the MCP23017 on the i2c bus [default: 0x20]
-  - active_high: whether or not setting the pin high activates the relay
-    [default: True]
-  
+- mx_pin: The pin # on the MCP23017 that controls the relay
+- i2c_addr: Set the address of the MCP23017 on the i2c bus [default: 0x20]
+- active_high: whether or not setting the pin high activates the relay
+  [default: True]
