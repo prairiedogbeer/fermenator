@@ -167,7 +167,7 @@ class MCP23017Relay(Relay):
         self._device = Adafruit_GPIO.MCP230xx.MCP23017(
             self.i2c_addr
         )
-        self._device.setup(self.mx_min, Adafruit_GPIO.OUT)
+        self._device.setup(self.mx_pin, Adafruit_GPIO.OUT)
         self.off()
 
     def on(self):
