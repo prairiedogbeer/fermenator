@@ -4,8 +4,9 @@ devices used to enable or disable heating and cooling of beers.
 """
 import logging
 import gpiozero
+import threading
+import fermenator.i2c
 import Adafruit_GPIO
-import Adafruit_GPIO.MCP230xx
 
 ON = 1
 OFF = 0
@@ -164,7 +165,7 @@ class MCP23017Relay(Relay):
             self.i2c_addr = kwargs['i2c_addr']
         except KeyError:
             self.i2c_addr = 0x20
-        self._device = Adafruit_GPIO.MCP230xx.MCP23017(
+        self._device = fermenator.i2c.MCP23017(
             self.i2c_addr
         )
         self._device.setup(self.mx_pin, Adafruit_GPIO.OUT)
