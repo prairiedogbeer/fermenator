@@ -22,8 +22,8 @@ class MCP23017():
         """
         with MCP23017.__lock:
             if MCP23017.__instance is None:
-                MCP23017.__instance = Adafruit_GPIO.MCP230xx.MCP23017.__new__(
-                    self, *args, **kwargs
+                MCP23017.__instance = Adafruit_GPIO.MCP230xx.MCP23017(
+                    *args, **kwargs
                 )
 
     def __getattr__(self, name):
