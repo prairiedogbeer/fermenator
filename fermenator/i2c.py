@@ -26,18 +26,11 @@ class MCP23017():
                     self, *args, **kwargs
                 )
 
-    def _call_protected_function(self, function, *args, **kwargs):
-        """
-        function must be callable
-        """
-        with MCP23017.__lock:
-            return function(*args, **kwargs)
-
     def __getattr__(self, name):
         with MCP23017.__lock:
-            subattr = MCP23017.__instance.__getattr__(name)
+            subattr = getattr(MCP23017.__instance, name)
             if callable(subattr):
-                def fn(*args, *kwargs):
+                def fn(*args, **kwargs):
                     with MCP23017.__lock:
                         return subattr(*args, **kwargs)
                 return fn
