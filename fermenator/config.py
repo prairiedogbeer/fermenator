@@ -15,7 +15,7 @@ from yaml import load as load_yaml
 from fermenator.datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
 from fermenator.datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
-from fermenator.relay import Relay, GPIORelay
+from fermenator.relay import Relay, GPIORelay, MCP23017Relay
 from fermenator.beer import AbstractBeer, SetPointBeer, LinearBeer
 from fermenator.manager import ManagerThread
 
