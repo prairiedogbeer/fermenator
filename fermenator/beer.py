@@ -240,6 +240,10 @@ class LinearBeer(AbstractBeer):
         """
         super(LinearBeer, self).__init__(name, **kwargs)
         try:
+            self.identifier = self._config['identifier']
+        except KeyError:
+            raise RuntimeError("No identifier provided")
+        try:
             self.original_gravity = float(self._config['original_gravity'])
         except KeyError:
             raise RuntimeError("original_gravity must be specified")
