@@ -175,7 +175,7 @@ class MCP23017Relay(Relay):
         Turn on the relay, taking into account active_high configuration.
         """
         super(MCP23017Relay, self).on()
-        self._device.output(self.mx_pin), self.high_signal)
+        self._device.output(self.mx_pin, self.high_signal)
 
     def off(self):
         """
