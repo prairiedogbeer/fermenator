@@ -503,7 +503,7 @@ class FirebaseConfig(FermenatorConfig):
         """
         super(FirebaseConfig, self).__init__(name, **kwargs)
         self._fb = FirebaseDataSource("{}-db".format(name), **kwargs)
-        self._version = self.upstream_version()
+        self._version = None
         self.log.info("using config version %s", self._version)
 
     def upstream_version(self):
@@ -515,9 +515,9 @@ class FirebaseConfig(FermenatorConfig):
         Checks the version key in the configuration store and returns True if
         the version has changed since config was last loaded
         """
-        if self._version == self.upstream_version():
+        upstream_version = self.upstream_version()
+        if self._version == upstream_version:
             return False
-        self.log.debug("config changed to version %s", self._version)
         return True
 
     def get_relay_config(self):
@@ -568,3 +568,8 @@ class FirebaseConfig(FermenatorConfig):
         for path in self.PREFIX:
             handle = handle.child(path)
         handle.set(cdata)
+
+    def assemble(self):
+        self._version = self.upstream_version()
+        self.log.info("assembling with version %s", self._version)
+        super(FirebaseConfig, self).assemble()
