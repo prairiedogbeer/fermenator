@@ -504,7 +504,6 @@ class FirebaseConfig(FermenatorConfig):
         super(FirebaseConfig, self).__init__(name, **kwargs)
         self._fb = FirebaseDataSource("{}-db".format(name), **kwargs)
         self._version = None
-        self.log.info("using config version %s", self._version)
 
     def upstream_version(self):
         "Returns the current configuration version"
