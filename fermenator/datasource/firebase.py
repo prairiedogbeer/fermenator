@@ -56,6 +56,16 @@ class FirebaseDataSource(DataSource):
             raise DataNotFoundError('no data found at key {}'.format(keypath))
         return res
 
+    def set(self, key, value):
+        """
+        Set a key-value pair in Firebase. Key must be an iterable of keys
+        to traverse in the tree, and value can be a dict, float, int, etc.
+        """
+        obj = self._handle
+        for subkey in key:
+            obj = obj.child(subkey)
+        obj.set(value)
+
 class BrewConsoleFirebaseDS(FirebaseDataSource):
     """
     Implements a version of the :class:`FirebaseDataSource` class that provides
