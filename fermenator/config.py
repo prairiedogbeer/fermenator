@@ -15,6 +15,8 @@ from yaml import load as load_yaml
 from fermenator.datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
 from fermenator.datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
+from fermenator.datasource.carbon import CarbonDataSource
+from fermenator.statelogger import StateLogger
 from fermenator.relay import Relay, GPIORelay, MCP23017Relay
 from fermenator.beer import AbstractBeer, SetPointBeer, LinearBeer
 from fermenator.manager import ManagerThread
@@ -338,6 +340,7 @@ class FermenatorConfig():
         if issubclass(klass, ManagerThread):
             dict_data = self._vivify_config_relays(dict_data)
             dict_data = self._vivify_config_beers(dict_data)
+            dict_data = self._vivify_config_state_logger_ds(dict_data)
         elif issubclass(klass, AbstractBeer):
             dict_data = self._vivify_config_datasources(dict_data)
         if dict_data['config'] == 'inherit':
@@ -359,6 +362,21 @@ class FermenatorConfig():
                 dict_data['config']['datasource']]
         except KeyError:
             raise RuntimeError("error in datasource configuration for beer")
+        return dict_data
+
+    def _vivify_config_state_logger_ds(self, dict_data):
+        """
+        Pass this method class configuration data (as would be provided to
+        **kwargs when vivifying a class), and it will search for any
+        specified state logger datasources, replacing textual links with a true
+        object representing that datasource. Not safe to run twice on the same
+        data.
+        """
+        try:
+            dict_data['config']['state_logger_datasource'] = self._datasources[
+                dict_data['config']['datasource']]
+        except KeyError:
+            pass
         return dict_data
 
     def _vivify_config_beers(self, dict_data):

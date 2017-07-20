@@ -5,6 +5,7 @@ import numbers
 import socket
 import platform
 import time
+import threading
 
 from . import DataSource
 
@@ -34,6 +35,7 @@ class CarbonDataSource(DataSource):
     Class implementation used to set data into a carbon database. Does not
     implement gets because graphite is used for that.
     """
+    __lock = threading.Lock()
 
     def __init__(self, name, **kwargs):
         """
@@ -69,19 +71,20 @@ class CarbonDataSource(DataSource):
         """
         Returns the current socket
         """
-        if not self.__socket:
-            self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.__socket.settimeout(self.timeout)
-            if self.enable_keepalive:
-                if platform.system() == "Linux":
-                    set_keepalive_linux(self.__socket)
-                elif platform.system() in ("Darwin",):
-                    set_keepalive_osx(self.__socket)
-            try:
-                self.__socket.connect((self.host, self.port))
-            except socket.gaierror as err:
-                self.log.error("Error connecting: %s", err.__str__())
-        return self.__socket
+        with CarbonDataSource.__lock:
+            if not self.__socket:
+                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.__socket.settimeout(self.timeout)
+                if self.enable_keepalive:
+                    if platform.system() == "Linux":
+                        set_keepalive_linux(self.__socket)
+                    elif platform.system() in ("Darwin",):
+                        set_keepalive_osx(self.__socket)
+                try:
+                    self.__socket.connect((self.host, self.port))
+                except socket.gaierror as err:
+                    self.log.error("Error connecting: %s", err.__str__())
+            return self.__socket
 
     def set(self, key, value, timestamp=None):
         """
@@ -104,6 +107,7 @@ class CarbonDataSource(DataSource):
         """
         payload = "{} {} {}\n".format(key, value, int(timestamp)).encode()
         try:
-            self.socket.send(payload)
+            with CarbonDataSource.__lock:
+                self.socket.send(payload)
         except OSError as err:
             self.log.error("Error while writing to carbon: %s", err.__str__())

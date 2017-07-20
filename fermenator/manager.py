@@ -5,6 +5,8 @@ import logging
 import threading
 import time
 
+import fermenator.statelogger
+
 class ManagerThread():
     """
     Create one of these for every beer that needs to be managed.
@@ -24,7 +26,7 @@ class ManagerThread():
         - active_cooling_relay: relay object used for cooling the beer
         - active_heating_relay: relay object used for heating the beer
         - polling_frequency: how often to check the beer (float)
-        - state_logger: StateLogger-type object for logging state (optional)
+        - state_logger_datasource: datasource-type object for logging state (optional)
         """
         self.name = name
         if 'beer' not in kwargs:
@@ -56,7 +58,10 @@ class ManagerThread():
         except KeyError:
             self._polling_frequency = 60
         try:
-            self.state_logger = kwargs['state_logger']
+            self.state_logger = fermenator.statelogger.StateLogger(
+                self.name,
+                datasource=kwargs['state_logger_datasource'],
+                path_prefix="fermenator.state")
         except KeyError:
             self.state_logger = None
         self._stop = False
