@@ -42,7 +42,7 @@ def set_up_logging(args):
         root_logger.setLevel(logging.WARN)
 
     base_log_format = "%(levelname)-8s %(name)s %(message)s"
-    formatter = logging.Formatter(log_format)
+    formatter = logging.Formatter(base_log_format)
 
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
