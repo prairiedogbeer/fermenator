@@ -70,6 +70,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
 
         - gravity_unit (P or SG)
         - temperature_unit (C or F)
+        - temperature_key_name: optional [default: 1w_temperature]
         """
         super(BrewConsoleFirebaseDS, self).__init__(name, **kwargs)
         try:
@@ -82,6 +83,10 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
             del kwargs['temperature_unit']
         except KeyError:
             self.temperature_unit = 'C'
+        try:
+            self.temperature_key_name = kwargs['temperature_key_name']
+        except KeyError:
+            self.temperature_key_name = '1w_temperature'
 
     def get_gravity(self, identifier):
         """
@@ -101,7 +106,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         Returns the most recent temperture reading for the item at `identifier`
         """
         val = super(BrewConsoleFirebaseDS, self).get(
-            ('brewery', identifier, 'readings', 'tilt_temperature'))
+            ('brewery', identifier, 'readings', self.temperature_key_name))
         rdata = dict()
         rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
         rdata['temperature'] = float(val['value'])  # celcius
