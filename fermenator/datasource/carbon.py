@@ -44,7 +44,7 @@ class CarbonDataSource(DataSource):
         - socket_timeout: optional, [default: 5 seconds]
         - enable_keepalive: optional, boolean, Linux/OSX only [default: True]
         """
-        super(FirebaseDataSource, self).__init__(name, **kwargs)
+        super(CarbonDataSource, self).__init__(name, **kwargs)
         self._config = kwargs
         try:
             self.host = kwargs['host']
@@ -79,19 +79,9 @@ class CarbonDataSource(DataSource):
                     set_keepalive_osx(self.__socket)
             try:
                 self.__socket.connect((self.host, self.port))
-            except socket.gaierror, e:
-                self.log.error("Error; %s", e[1])
+            except socket.gaierror as err:
+                self.log.error("Error connecting: %s", err.__str__())
         return self.__socket
-
-    def _send(self, key, value, timestamp):
-        """
-        Implement the low-level socket send operation
-        """
-        payload = "{} {} {}".format(key, value, int(timestamp)).encode()
-        try:
-            self.__socket.send(payload)
-        except OSError as e:
-            self.log.error("Error while writing to carbon: %s", e.string)
 
     def set(self, key, value, timestamp=None):
         """
@@ -106,3 +96,14 @@ class CarbonDataSource(DataSource):
         if timestamp is None:
             timestamp = time.time()
         key = '.'.join(key)
+        self._send(key, value, timestamp)
+
+    def _send(self, key, value, timestamp):
+        """
+        Implement the low-level socket send operation
+        """
+        payload = "{} {} {}\n".format(key, value, int(timestamp)).encode()
+        try:
+            self.socket.send(payload)
+        except OSError as err:
+            self.log.error("Error while writing to carbon: %s", err.__str__())
