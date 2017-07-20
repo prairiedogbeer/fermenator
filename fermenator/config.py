@@ -156,10 +156,10 @@ class FermenatorConfig():
             obj.join(30.0)
             if obj.isAlive():
                 self.log.error("manager thread %s could not be stopped", name)
-        self._managers = None
-        self._beers = None
-        self._datasources = None
-        self._relays = None
+        self._managers = dict()
+        self._beers = dict()
+        self._datasources = dict()
+        self._relays = dict()
         garbage_collect()
 
     def run(self):
