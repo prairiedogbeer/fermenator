@@ -41,7 +41,7 @@ def set_up_logging(args):
     else:
         root_logger.setLevel(logging.WARN)
 
-    log_format = "%(asctime)s %(levelname)-8s %(name)s %(message)s"
+    base_log_format = "%(levelname)-8s %(name)s %(message)s"
     formatter = logging.Formatter(log_format)
 
     ch = logging.StreamHandler()
@@ -50,9 +50,10 @@ def set_up_logging(args):
     root_logger.addHandler(ch)
 
     if args['--logfile']:
+        file_formatter = logging.Formatter("%(asctime)s " + base_log_format)
         fh = logging.FileHandler(args['--logfile'])
         fh.setLevel(logging.DEBUG)
-        fh.setFormatter(formatter)
+        fh.setFormatter(file_formatter)
         root_logger.addHandler(fh)
 
 def main():
