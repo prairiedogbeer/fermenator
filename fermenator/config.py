@@ -374,7 +374,7 @@ class FermenatorConfig():
         """
         try:
             dict_data['config']['state_logger_datasource'] = self._datasources[
-                dict_data['config']['datasource']]
+                dict_data['config']['state_logger_datasource']]
         except KeyError:
             pass
         return dict_data
