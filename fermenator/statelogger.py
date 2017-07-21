@@ -28,7 +28,7 @@ class StateLogger:
                 self.__class__.__name__, name))
         self._config = kwargs
         try:
-            self.path_prefix = kwargs['path_prefix'].split('.')
+            self.path_prefix = tuple(kwargs['path_prefix'].split('.'))
         except KeyError:
             raise RuntimeError("path_prefix must be defined")
 
