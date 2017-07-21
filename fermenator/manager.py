@@ -174,6 +174,8 @@ class ManagerThread():
         while not self._stop:
             t_start = time.time()
             self.log.debug("checking on beer")
+            if self.state_logger:
+                self.state_logger.log_heartbeat(self.beer)
             if self.beer.requires_heating():
                 self._do_heating()
             elif self.beer.requires_cooling():
