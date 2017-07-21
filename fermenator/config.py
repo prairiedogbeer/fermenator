@@ -377,7 +377,7 @@ class FermenatorConfig():
         except KeyError:
             return dict_data
         for name in state_loggers:
-            logger_config = state_loggers[name]
+            logger_config = state_loggers[name]['config']
             try:
                 logger_config['datasource'] = \
                     self._datasources[logger_config['datasource']]
