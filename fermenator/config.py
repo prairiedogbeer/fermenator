@@ -373,10 +373,19 @@ class FermenatorConfig():
         data.
         """
         try:
-            dict_data['config']['state_logger_datasource'] = self._datasources[
-                dict_data['config']['state_logger_datasource']]
+            state_loggers = dict_data['config']['state_loggers']
         except KeyError:
-            pass
+            return dict_data
+        for name in state_loggers:
+            logger_config = state_loggers[name]
+            try:
+                logger_config['datasource'] = \
+                    self._datasources[logger_config['datasource']]
+            except KeyError:
+                raise RuntimeError(
+                    "state_logger {} defined without datasource".format(name))
+            dict_data['config']['state_loggers'][name] = StateLogger(
+                name, **logger_config)
         return dict_data
 
     def _vivify_config_beers(self, dict_data):
