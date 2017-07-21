@@ -63,6 +63,7 @@ class ManagerThread():
                 datasource=kwargs['state_logger_datasource'],
                 path_prefix="fermenator.state")
         except KeyError:
+            self.log.info("no state logger defined")
             self.state_logger = None
         self._stop = False
         self._thread = threading.Thread(target=self.run)
