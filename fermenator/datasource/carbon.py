@@ -80,10 +80,12 @@ class CarbonDataSource(DataSource):
                         set_keepalive_linux(self.__socket)
                     elif platform.system() in ("Darwin",):
                         set_keepalive_osx(self.__socket)
+                    else:
+                        self.log.debug("keepalives enabled but not supported")
                 try:
                     self.__socket.connect((self.host, self.port))
                 except socket.gaierror as err:
-                    self.log.error("Error connecting: %s", err.__str__())
+                    raise RuntimeError("Error connecting: %s", err.__str__())
             return self.__socket
 
     def set(self, key, value, timestamp=None):

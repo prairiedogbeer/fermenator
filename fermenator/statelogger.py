@@ -42,42 +42,57 @@ class StateLogger:
         "heartbeat"
         """
         if self.enabled:
-            self.log.debug("logging heartbeat")
-            self.datasource.set(
-                self.path_prefix + (obj.name, "heartbeat"), time.time())
+            try:
+                self.datasource.set(
+                    self.path_prefix + (obj.name, "heartbeat"), time.time())
+            except RuntimeError as err:
+                self.log.error("Disabling due to error during write: %s", err)
+                self.enabled = False
 
     def log_cooling_on(self, obj):
         """
         Write a `1` to the firebase datasource at `path_prefix` + obj.name +
         "cooling"
         """
-        if self.enabled:
-            self.log.debug("logging cooling on")
-            self.datasource.set(self.path_prefix + (obj.name, "cooling"), 1)
+        try:
+            self.datasource.set(
+                self.path_prefix + (obj.name, "cooling"), 1)
+        except RuntimeError as err:
+            self.log.error("Disabling due to error during write: %s", err)
+            self.enabled = False
 
     def log_cooling_off(self, obj):
         """
         Write a `0` to the firebase datasource at `path_prefix` + obj.name +
         "cooling"
         """
-        if self.enabled:
-            self.log.debug("logging cooling off")
-            self.datasource.set(self.path_prefix + (obj.name, "cooling"), 0)
+        try:
+            self.datasource.set(
+                self.path_prefix + (obj.name, "cooling"), 0)
+        except RuntimeError as err:
+            self.log.error("Disabling due to error during write: %s", err)
+            self.enabled = False
 
     def log_heating_on(self, obj):
         """
         Write a `1` to the firebase datasource at `path_prefix` + obj.name +
         "heating"
         """
-        if self.enabled:
-            self.log.debug("logging heating on")
-            self.datasource.set(self.path_prefix + (obj.name, "heating"), 1)
+        try:
+            self.datasource.set(
+                self.path_prefix + (obj.name, "heating"), 1)
+        except RuntimeError as err:
+            self.log.error("Disabling due to error during write: %s", err)
+            self.enabled = False
 
     def log_heating_off(self, obj):
         """
         Write a `0` to the firebase datasource at `path_prefix` + obj.name +
         "heating"
         """
-        if self.enabled:
-            self.log.debug("logging heating off")
-            self.datasource.set(self.path_prefix + (obj.name, "heating"), 0)
+        try:
+            self.datasource.set(
+                self.path_prefix + (obj.name, "heating"), 0)
+        except RuntimeError as err:
+            self.log.error("Disabling due to error during write: %s", err)
+            self.enabled = False
