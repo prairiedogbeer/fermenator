@@ -35,7 +35,7 @@ class CarbonDataSource(DataSource):
     Class implementation used to set data into a carbon database. Does not
     implement gets because graphite is used for that.
     """
-    __lock = threading.Lock()
+    __lock = threading.RLock()
 
     def __init__(self, name, **kwargs):
         """
