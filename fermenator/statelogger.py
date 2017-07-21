@@ -2,6 +2,7 @@
 This module houses classes for logging the state of heating, cooling, etc to
 datasources.
 """
+import logging
 import time
 
 class StateLogger:
