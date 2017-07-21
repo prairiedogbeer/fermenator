@@ -4,7 +4,7 @@ datasources.
 """
 import time
 
-class StateLogger(StateLogger):
+class StateLogger:
     """
     Implement the methods to log state to firebase.
     """
