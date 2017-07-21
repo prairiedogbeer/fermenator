@@ -4,7 +4,7 @@ devices used to enable or disable heating and cooling of beers.
 """
 import logging
 import gpiozero
-import threading
+import gpiozero.threads
 import fermenator.i2c
 import Adafruit_GPIO
 
@@ -26,9 +26,14 @@ class Relay(object):
         self._config = kwargs
         self.name = name
         self._state = None
+        try:
+            self._duty_cycle = float(kwargs['duty_cycle'])
+            self._cycle_time = float(kwargs['cycle_time'])
+        except KeyError:
+            self.log.info("no duty cycle configured (correctly)")
+            self._duty_cycle = None
 
     def __del__(self):
-        self.log.debug("destructing")
         self.off()
 
     def on(self):
@@ -99,16 +104,6 @@ class GPIORelay(Relay):
             active_high=active_high,
             initial_value=False # keep relay turned off initially
         )
-        if 'duty_cycle' in kwargs:
-            if 'cycle_time' in kwargs:
-                self._duty_cycle = float(kwargs['duty_cycle'])
-                self._cycle_time = float(kwargs['cycle_time'])
-            else:
-                self.log.warning(
-                    "duty_cycle specified without cycle_time. Ignoring duty_cycle")
-                self._duty_cycle = None
-        else:
-            self._duty_cycle = None
         self.off()
 
     def on(self):
@@ -148,6 +143,8 @@ class MCP23017Relay(Relay):
         - i2c_addr: Set the address of the MCP23017 on the i2c bus [default: 0x20]
         - active_high: whether or not setting the pin high activates the relay
           [default: True]
+        - duty_cycle: a percentage of on time
+        - cycle_time: a duration of time for entire duty cycle
 
         """
         super(MCP23017Relay, self).__init__(name, **kwargs)
@@ -169,13 +166,23 @@ class MCP23017Relay(Relay):
             self.i2c_addr
         )
         self._device.setup(self.mx_pin, Adafruit_GPIO.OUT)
+        self._duty_cycle_thread = None
         self.off()
 
     def on(self):
         """
         Turn on the relay, taking into account active_high configuration.
+        Supports running the relay in a duty cycle.
         """
         super(MCP23017Relay, self).on()
+        self._stop_duty_cycle()
+        if self._duty_cycle:
+            on_time = self._duty_cycle * self._cycle_time
+            off_time = self._cycle_time - on_time
+            self._duty_cycle_thread = gpiozero.threads.GPIOThread(
+                target=self._run_duty_cycle, args={
+                    "on_time": on_time, "off_time": off_time})
+            self._duty_cycle_thread.start()
         self._device.output(self.mx_pin, self.high_signal)
 
     def off(self):
@@ -183,4 +190,27 @@ class MCP23017Relay(Relay):
         Turn off the relay, taking into account active_high configuration.
         """
         super(MCP23017Relay, self).off()
+        self._stop_duty_cycle()
         self._device.output(self.mx_pin, not self.high_signal)
+
+    def _stop_duty_cycle(self):
+        """
+        Stops any running duty cycle threads
+        """
+        if self._duty_cycle_thread:
+            self._duty_cycle_thread.stop()
+            self._duty_cycle_thread = None
+
+    def _run_duty_cycle(self, on_time=1200, off_time=1200):
+        """
+        This method makes the relay turn on and off in an infinite loop, using
+        the on_time and off_time specified. Meant to be passed to a Thread
+        object and run in the background.
+        """
+        while True:
+            self._device.output(self.mx_pin, self.high_signal)
+            if self._duty_cycle_thread.stopping.wait(on_time):
+                break
+            self._device.output(self.mx_pin, not self.high_signal)
+            if self._duty_cycle_thread.stopping.wait(off_time):
+                break
