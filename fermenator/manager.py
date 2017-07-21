@@ -200,6 +200,8 @@ class ManagerThread():
         """
         if self.active_cooling_relay:
             self.active_cooling_relay.off()
+            if self.state_logger:
+                self.state_logger.log_cooling_off(self.beer)
         if self._active_heating:
             if self.active_heating_relay:
                 self.active_heating_relay.on()
@@ -219,6 +221,8 @@ class ManagerThread():
         """
         if self.active_heating_relay:
             self.active_heating_relay.off()
+            if self.state_logger:
+                self.state_logger.log_heating_off(self.beer)
         if self._active_cooling:
             if self.active_cooling_relay:
                 self.active_cooling_relay.on()
