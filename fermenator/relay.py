@@ -180,7 +180,7 @@ class MCP23017Relay(Relay):
             on_time = self._duty_cycle * self._cycle_time
             off_time = self._cycle_time - on_time
             self._duty_cycle_thread = gpiozero.threads.GPIOThread(
-                target=self._run_duty_cycle, args={
+                target=self._run_duty_cycle, kwargs={
                     "on_time": on_time, "off_time": off_time})
             self._duty_cycle_thread.start()
         self._device.output(self.mx_pin, self.high_signal)
