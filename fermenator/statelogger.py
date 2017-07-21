@@ -37,14 +37,16 @@ class StateLogger:
         Logs the current timestamp to the datasource at `path_prefix` + obj.name +
         "heartbeat"
         """
+        self.log.debug("logging heartbeat")
         self.datasource.set(
-            self.path_prefix + (obj.name, "heartbeat"),time.time())
+            self.path_prefix + (obj.name, "heartbeat"), time.time())
 
     def log_cooling_on(self, obj):
         """
         Write a `1` to the firebase datasource at `path_prefix` + obj.name +
         "cooling"
         """
+        self.log.debug("logging cooling on")
         self.datasource.set(self.path_prefix + (obj.name, "cooling"), 1)
 
     def log_cooling_off(self, obj):
@@ -52,6 +54,7 @@ class StateLogger:
         Write a `0` to the firebase datasource at `path_prefix` + obj.name +
         "cooling"
         """
+        self.log.debug("logging cooling off")
         self.datasource.set(self.path_prefix + (obj.name, "cooling"), 0)
 
     def log_heating_on(self, obj):
@@ -59,11 +62,13 @@ class StateLogger:
         Write a `1` to the firebase datasource at `path_prefix` + obj.name +
         "heating"
         """
+        self.log.debug("logging heating on")
         self.datasource.set(self.path_prefix + (obj.name, "heating"), 1)
 
-    def log_cooling_off(self, obj):
+    def log_heating_off(self, obj):
         """
         Write a `0` to the firebase datasource at `path_prefix` + obj.name +
         "heating"
         """
+        self.log.debug("logging heating off")
         self.datasource.set(self.path_prefix + (obj.name, "heating"), 0)
