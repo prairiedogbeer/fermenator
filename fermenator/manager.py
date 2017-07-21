@@ -5,6 +5,8 @@ import logging
 import threading
 import time
 
+import fermenator.statelogger
+
 class ManagerThread():
     """
     Create one of these for every beer that needs to be managed.
@@ -15,6 +17,17 @@ class ManagerThread():
     """
 
     def __init__(self, name, **kwargs):
+        """
+        Pass a name plus one or more of the following arguments:
+
+        - beer: beer-type object to manage (required)
+        - active_cooling: boolean - whether or not to enable cooling
+        - active_heating: boolean - whether or not to enable heating
+        - active_cooling_relay: relay object used for cooling the beer
+        - active_heating_relay: relay object used for heating the beer
+        - polling_frequency: how often to check the beer (float)
+        - state_loggers: dictionary of state loggers (optional)
+        """
         self.name = name
         if 'beer' not in kwargs:
             raise RuntimeError("'beer' must be specified in kwargs")
@@ -44,6 +57,11 @@ class ManagerThread():
             self._polling_frequency = float(kwargs['polling_frequency'])
         except KeyError:
             self._polling_frequency = 60
+        try:
+            self.state_loggers = kwargs['state_loggers']
+        except KeyError:
+            self.log.info("no state loggers defined")
+            self.state_loggers = dict()
         self._stop = False
         self._thread = threading.Thread(target=self.run)
 
@@ -120,7 +138,7 @@ class ManagerThread():
 
     @active_heating.setter
     def active_heating(self, value):
-        "Sets teh boolean value of active heating"
+        "Sets the boolean value of active heating"
         if value:
             self.log.info("active heating enabled")
             self._active_heating = True
@@ -154,10 +172,14 @@ class ManagerThread():
         while not self._stop:
             t_start = time.time()
             self.log.debug("checking on beer")
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_heartbeat(self.beer)
             if self.beer.requires_heating():
                 self._do_heating()
             elif self.beer.requires_cooling():
                 self._do_cooling()
+            else:
+                self._do_no_heat_no_cool()
             while not self._stop and ((time.time() - t_start) < self.polling_frequency):
                 time.sleep(1)
         self._shut_off_relays()
@@ -178,9 +200,13 @@ class ManagerThread():
         """
         if self.active_cooling_relay:
             self.active_cooling_relay.off()
-        if self._active_heating:
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_cooling_off(self.beer)
+        if self.active_heating:
             if self.active_heating_relay:
                 self.active_heating_relay.on()
+                for logger in self.state_loggers:
+                    self.state_loggers[logger].log_heating_on(self.beer)
             else:
                 self.log.warning(
                     "heating required but no active heating relay set")
@@ -195,14 +221,32 @@ class ManagerThread():
         """
         if self.active_heating_relay:
             self.active_heating_relay.off()
-        if self._active_cooling:
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_heating_off(self.beer)
+        if self.active_cooling:
             if self.active_cooling_relay:
                 self.active_cooling_relay.on()
+                for logger in self.state_loggers:
+                    self.state_loggers[logger].log_cooling_on(self.beer)
             else:
                 self.log.warning(
                     "cooling required but no active cooling relay set")
         else:
             self.log.warning("active cooling required but disabled")
+
+    def _do_no_heat_no_cool(self):
+        """
+        Call this method whenever the beer says it doesn't need heating or
+        cooling.
+        """
+        if self.active_heating_relay and self.active_heating_relay.is_on():
+            self.active_heating_relay.off()
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_heating_off(self.beer)
+        if self.active_cooling_relay and self.active_cooling_relay.is_on():
+            self.active_cooling_relay.off()
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_cooling_off(self.beer)
 
     def _shut_off_relays(self):
         """
@@ -211,5 +255,9 @@ class ManagerThread():
         """
         if self.active_cooling_relay:
             self.active_cooling_relay.off()
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_cooling_off(self.beer)
         if self.active_heating_relay:
             self.active_heating_relay.off()
+            for logger in self.state_loggers:
+                self.state_loggers[logger].log_heating_off(self.beer)
