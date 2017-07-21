@@ -166,24 +166,27 @@ class ManagerThread():
         Checks on the state of the monitored beer, and enables or disables
         heating accordingly. Runs in an infinite loop that can only be
         interrupted by self._stop being set True (which is checked once per
-        second). Ensurses that relays are disabled on shutdown.
+        quarter second). Ensurses that relays are disabled on shutdown.
         """
         self.log.debug("started")
         while not self._stop:
             t_start = time.time()
-            self.log.debug("checking on beer")
-            for logger in self.state_loggers:
-                self.state_loggers[logger].log_heartbeat(self.beer)
+            self.log.debug("checking on beer: %s", self.beer.name)
             if self.beer.requires_heating():
-                self._do_heating()
+                self._stop_cooling()
+                self._start_heating()
             elif self.beer.requires_cooling():
-                self._do_cooling()
+                self._stop_heating()
+                self._start_cooling()
             else:
-                self._do_no_heat_no_cool()
-            self._log_temp_mgmt_state()
+                self._stop_heating()
+                self._stop_cooling()
+            self._log_state()
             while not self._stop and ((time.time() - t_start) < self.polling_frequency):
-                time.sleep(1)
-        self._shut_off_relays()
+                time.sleep(0.25)
+        self._stop_heating()
+        self._stop_cooling()
+        self._log_state()
         self.log.debug("finished")
 
     def stop(self):
@@ -193,51 +196,59 @@ class ManagerThread():
         self._stop = True
         self.log.info("stopping")
 
-    def _do_heating(self):
+    def _start_heating(self):
         """
         This method is called whenever the beer thinks it needs heating, and
         handles the logic of determining if a relay is present and if config
         allows for active heating.
         """
-        if self.active_cooling_relay:
-            self.active_cooling_relay.off()
         if self.active_heating:
-            if self.active_heating_relay:
+            try:
                 self.active_heating_relay.on()
-            else:
+            except AttributeError:
                 self.log.warning(
                     "heating required but no active heating relay set")
         else:
             self.log.warning("active heating required but disabled")
 
-    def _do_cooling(self):
+    def _stop_heating(self):
+        """
+        Call this method whenever cooling is started or when heat is no longer
+        required.
+        """
+        try:
+            self.active_heating_relay.off()
+        except AttributeError:
+            pass
+
+    def _start_cooling(self):
         """
         This method is called whenever the beer thinks it needs cooling, and
         handles the logic of determining if a relay is present and if config
         allows for active cooling.
         """
-        if self.active_heating_relay:
-            self.active_heating_relay.off()
         if self.active_cooling:
-            if self.active_cooling_relay:
+            try:
                 self.active_cooling_relay.on()
-            else:
+            except AttributeError:
                 self.log.warning(
                     "cooling required but no active cooling relay set")
         else:
             self.log.warning("active cooling required but disabled")
 
-    def _do_no_heat_no_cool(self):
+    def _stop_cooling(self):
         """
-        Call this method whenever the beer says it doesn't need heating or
-        cooling.
+        Call this method whenever cooling is started or when heat is no longer
+        required.
         """
-        if self.active_heating_relay and self.active_heating_relay.is_on():
-            self.active_heating_relay.off()
-        if self.active_cooling_relay and self.active_cooling_relay.is_on():
+        try:
             self.active_cooling_relay.off()
+        except AttributeError:
+            pass
 
-    def _log_temp_mgmt_state(self):
+    def _log_state(self):
+        for logger in self.state_loggers:
+            self.state_loggers[logger].log_heartbeat(self.beer)
         if self.active_heating_relay and self.active_heating_relay.is_on():
             for logger in self.state_loggers:
                 self.state_loggers[logger].log_heating_on(self.beer)
@@ -250,14 +261,3 @@ class ManagerThread():
         else:
             for logger in self.state_loggers:
                 self.state_loggers[logger].log_cooling_off(self.beer)
-
-    def _shut_off_relays(self):
-        """
-        This method is called at the end of :meth:`run`, and ensures that any
-        configured relays are shut off.
-        """
-        if self.active_cooling_relay:
-            self.active_cooling_relay.off()
-        if self.active_heating_relay:
-            self.active_heating_relay.off()
-        self._log_temp_mgmt_state()

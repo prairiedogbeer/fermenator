@@ -183,7 +183,8 @@ class MCP23017Relay(Relay):
                 target=self._run_duty_cycle, kwargs={
                     "on_time": on_time, "off_time": off_time})
             self._duty_cycle_thread.start()
-        self._device.output(self.mx_pin, self.high_signal)
+        else:
+            self._device.output(self.mx_pin, self.high_signal)
 
     def off(self):
         """
