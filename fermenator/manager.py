@@ -179,6 +179,7 @@ class ManagerThread():
                 self._stop_heating()
                 self._start_cooling()
             else:
+                self.log.info("beer %s is at set point", self.beer.name)
                 self._stop_heating()
                 self._stop_cooling()
             self._log_state()
