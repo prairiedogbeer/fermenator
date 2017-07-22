@@ -231,7 +231,7 @@ class SetPointBeer(AbstractBeer):
                     break
                 numerator += reading * self._temp_readings[reading -1]
                 denom += reading
-        self._moving_avg_temp = numerator / float(denom)
+            self._moving_avg_temp = numerator / float(denom)
 
     def requires_heating(self, heating_state, cooling_state):
         """
