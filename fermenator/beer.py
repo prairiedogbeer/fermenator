@@ -61,12 +61,19 @@ class AbstractBeer(object):
         """
         return self._name
 
-    def requires_heating(self):
-        "Implement this method in a subclass using the algorithm of your choice"
+    def requires_heating(self, heating_state, cooling_state):
+        """Implement this method in a subclass using the algorithm of your choice
+        heating_state and cooling_state are boolean values representing whether
+        a beer is currently being heated or cooled, which influences the
+        set point of the system.
+        """
         pass
 
-    def requires_cooling(self):
-        "Implement this method in a subclass using the algorithm of your choice"
+    def requires_cooling(self, heating_state, cooling_state):
+        """Implement this method in a subclass using the algorithm of your choice
+        heating_state and cooling_state are boolean values representing whether
+        a beer is currently being heated or cooled, which influences the
+        set point of the system."""
         pass
 
     @property
@@ -169,37 +176,51 @@ class SetPointBeer(AbstractBeer):
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch temperature from datasource after %d tries".format(
+            "unable to fetch temperature from datasource after {} tries".format(
                 retries))
 
-    def requires_heating(self):
+    def requires_heating(self, heating_state, cooling_state):
         """
         Returns True if the beer requires heating based on the set point,
         current temperature, and configured tolerance, False otherwise. If
         data is older than the configured :attr:`data_age_warning_time`,
         returns False, ensuring that the beer is not accidentally heated.
+
+        heating_state and cooling_state are boolean values representing whether
+        a beer is currently being heated or cooled, which influences the
+        set point of the system.
         """
         if self.set_point is None:
             return False
         temp = self._get_temperature()
-        if self.set_point > (temp + self.tolerance):
+        set_point = self.set_point - self.tolerance
+        if heating_state:
+            set_point = self.set_point + self.tolerance
+        if temp < set_point:
             self.log.info(
-                "heating required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
-                temp, self.set_point, self.tolerance)
+                "heating required (temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)",
+                temp, self.set_point, set_point, self.tolerance)
             return True
 
-    def requires_cooling(self):
+    def requires_cooling(self, heating_state, cooling_state):
         """
         Returns True if the beer is warmer than the set point by more than
         the configured tolerance, False otherwise.
+
+        heating_state and cooling_state are boolean values representing whether
+        a beer is currently being heated or cooled, which influences the
+        set point of the system.
         """
         if self.set_point is None:
             return False
         temp = self._get_temperature()
-        if (self.set_point + self.tolerance) < temp:
+        set_point = self.set_point + self.tolerance
+        if cooling_state:
+            set_point = self.set_point - self.tolerance
+        if temp > set_point:
             self.log.info(
-                "cooling required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
-                temp, self.set_point, self.tolerance)
+                "cooling required (temp=%.1f, target_temp=%.1f set_point=%.1f, tolerance=%.2f)",
+                temp, self.set_point, set_point, self.tolerance)
             return True
 
 class LinearBeer(AbstractBeer):
@@ -276,7 +297,7 @@ class LinearBeer(AbstractBeer):
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch temperature from datasource after %d tries".format(
+            "unable to fetch temperature from datasource after {} tries".format(
                 retries))
 
     def _get_gravity(self, retries=3):
@@ -292,10 +313,10 @@ class LinearBeer(AbstractBeer):
                 self.log.warning(
                     "exception reading/parsing gravity from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch gravity from datasource after %d tries".format(
+            "unable to fetch gravity from datasource after {} tries".format(
                 retries))
 
-    def requires_heating(self):
+    def requires_heating(self, heating_state, cooling_state):
         try:
             gravity = self._get_gravity()
             current_temp = self._get_temperature()
@@ -304,16 +325,19 @@ class LinearBeer(AbstractBeer):
             return False
         progress = self.calc_progress(gravity)
         target = self.current_target_temperature(progress)
-        if (target - current_temp) > self.tolerance:
+        set_point = target - self.tolerance
+        if heating_state:
+            set_point = target + self.tolerance
+        if current_temp < set_point:
             self.log.info(
                 ("heating required (gravity=%.2f, progress=%.2fpct, "
-                 "temp=%.1f, target_temp=%.1f, tolerance=%.2f)"),
-                gravity, progress*100, current_temp, target, self.tolerance
-                )
+                 "temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)"),
+                gravity, progress*100, current_temp, target, set_point,
+                self.tolerance)
             return True
         return False
 
-    def requires_cooling(self):
+    def requires_cooling(self, heating_state, cooling_state):
         try:
             gravity = self._get_gravity()
             current_temp = self._get_temperature()
@@ -322,12 +346,15 @@ class LinearBeer(AbstractBeer):
             return False
         progress = self.calc_progress(gravity)
         target = self.current_target_temperature(progress)
+        set_point = target + self.tolerance
+        if cooling_state:
+            set_point = target - self.tolerance
         if (current_temp - target) > self.tolerance:
             self.log.info(
                 ("cooling required (gravity=%.2f, progress=%.2fpct, "
-                 "temp=%.1f, target_temp=%.1f, tolerance=%.2f)"),
-                gravity, progress*100, current_temp, target, self.tolerance
-                )
+                 "temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)"),
+                gravity, progress*100, current_temp, target, set_point,
+                self.tolerance)
             return True
         return False
 
