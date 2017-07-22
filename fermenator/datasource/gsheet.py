@@ -10,6 +10,7 @@ import requests
 from apiclient import discovery
 
 import fermenator.datasource
+from fermenator.exception import ConfigurationError, DataFetchError
 from fermenator.conversions import temp_f_to_c, sg_to_plato, convert_spreadsheet_date
 
 DEFAULT_CREDENTIAL_LOCATIONS = (
@@ -44,7 +45,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         try:
             self._ss_id = kwargs['spreadsheet_id']
         except KeyError:
-            raise RuntimeError("spreadsheet_id must be provided")
+            raise ConfigurationError("spreadsheet_id must be provided")
         self._config = kwargs
         #self.log.debug("config: {}".format(self._config))
         self._google_credentials = None
@@ -139,9 +140,9 @@ class GoogleSheet(fermenator.datasource.DataSource):
                 self._google_credentials = ServiceAccountCredentials.from_json_keyfile_name(
                     self._get_credential_config(), self._scopes)
             except KeyError:
-                raise RuntimeError("No client_secret path found in config")
+                raise ConfigurationError("No client_secret path found in config")
             except TypeError:
-                raise RuntimeError("config does not appear to be a dictionary")
+                raise ConfigurationError("config does not appear to be a dictionary")
         return self._google_credentials
 
     def _get_credential_config(self):
@@ -155,7 +156,7 @@ class GoogleSheet(fermenator.datasource.DataSource):
         for location in DEFAULT_CREDENTIAL_LOCATIONS:
             if os.path.exists(os.path.expanduser(location)):
                 return os.path.expanduser(location)
-        raise RuntimeError("no configuration found for client secret file")
+        raise ConfigurationError("no configuration found for client secret file")
 
     def _get_ss_service(self):
         """
@@ -240,7 +241,7 @@ class BrewometerGoogleSheet(GoogleSheet):
         """
         unit = value.upper()
         if not unit in ('C', 'F'):
-            raise RuntimeError("Temperature unit must be either 'C' or 'F'")
+            raise ConfigurationError("Temperature unit must be either 'C' or 'F'")
         self._temperature_unit = unit
 
     def _formatted_data(self):
@@ -303,7 +304,7 @@ class BrewometerGoogleSheet(GoogleSheet):
                             'timestamp': row['timestamp'],
                             key[1].lower(): row[key[1].lower()]}
                     else:
-                        raise RuntimeError(
+                        raise DataFetchError(
                             "key {} specified but not found in data".format(
                                 key))
                 else:

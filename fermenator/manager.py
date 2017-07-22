@@ -6,7 +6,7 @@ import threading
 import time
 
 import fermenator.statelogger
-from .beer import StaleDataError
+from .exception import ConfigurationError, FermenatorError
 
 class ManagerThread():
     """
@@ -31,7 +31,7 @@ class ManagerThread():
         """
         self.name = name
         if 'beer' not in kwargs:
-            raise RuntimeError("'beer' must be specified in kwargs")
+            raise ConfigurationError("'beer' must be specified in kwargs")
         self.beer = kwargs['beer']
         self.log = logging.getLogger(
             "{}.{}.{}".format(
@@ -184,7 +184,7 @@ class ManagerThread():
                     self.log.info("beer %s is at set point", self.beer.name)
                     self._stop_heating()
                     self._stop_cooling()
-            except StaleDataError as err:
+            except FermenatorError as err:
                 self.log.error(
                     "TEMPERATURE MANAGEMENT DISABLED: %s",
                     str(err), exc_info=0)

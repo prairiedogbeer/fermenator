@@ -12,25 +12,16 @@ import os.path
 import time
 from yaml import load as load_yaml
 
-from fermenator.datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
-from fermenator.datasource.firebase import (
+from .datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
+from .datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
-from fermenator.datasource.carbon import CarbonDataSource
-from fermenator.statelogger import StateLogger
-from fermenator.relay import Relay, GPIORelay, MCP23017Relay
-from fermenator.beer import AbstractBeer, SetPointBeer, LinearBeer
-from fermenator.manager import ManagerThread
-
-class ClassNotFoundError(RuntimeError):
-    """
-    Raise this when dynamic class loading is unable to find a class specified
-    in configuration
-    """
-    pass
-
-class ConfigNotFoundError(RuntimeError):
-    "Raise this exception when no configuration can be found/loaded"
-    pass
+from .datasource.carbon import CarbonDataSource
+from .statelogger import StateLogger
+from .relay import Relay, GPIORelay, MCP23017Relay
+from .beer import AbstractBeer, SetPointBeer, LinearBeer
+from .manager import ManagerThread
+from .exception import (
+    ConfigurationError, ClassNotFoundError, ConfigNotFoundError)
 
 def bootstrap():
     """
@@ -361,7 +352,8 @@ class FermenatorConfig():
             dict_data['config']['datasource'] = self._datasources[
                 dict_data['config']['datasource']]
         except KeyError:
-            raise RuntimeError("error in datasource configuration for beer")
+            raise ConfigurationError(
+                "error in datasource configuration for beer")
         return dict_data
 
     def _vivify_config_state_logger_ds(self, dict_data):
@@ -382,7 +374,7 @@ class FermenatorConfig():
                 logger_config['datasource'] = \
                     self._datasources[logger_config['datasource']]
             except KeyError:
-                raise RuntimeError(
+                raise ConfigurationError(
                     "state_logger {} defined without datasource".format(name))
             dict_data['config']['state_loggers'][name] = StateLogger(
                 name, **logger_config)
@@ -399,7 +391,8 @@ class FermenatorConfig():
             dict_data['config']['beer'] = self._beers[
                 dict_data['config']['beer']]
         except KeyError:
-            raise RuntimeError("error in manager configuration related to beer")
+            raise ConfigurationError(
+                "error in manager configuration related to beer")
         return dict_data
 
     def _vivify_config_relays(self, dict_data):
@@ -414,13 +407,13 @@ class FermenatorConfig():
                 dict_data['config']['active_cooling_relay'] = self._relays[
                     dict_data['config']['active_cooling_relay']]
             except KeyError:
-                raise RuntimeError("error in active_cooling_relay config")
+                raise ConfigurationError("error in active_cooling_relay config")
         if 'active_heating_relay' in dict_data['config']:
             try:
                 dict_data['config']['active_heating_relay'] = self._relays[
                     dict_data['config']['active_heating_relay']]
             except KeyError:
-                raise RuntimeError("error in active_heating_relay config")
+                raise ConfigurationError("error in active_heating_relay config")
         return dict_data
 
 class DictionaryConfig(FermenatorConfig):
@@ -474,7 +467,7 @@ class GoogleSheetConfig(FermenatorConfig):
         """
         super(GoogleSheetConfig, self).__init__(self, name, **kwargs)
         if 'spreadsheet_id' not in kwargs:
-            raise RuntimeError("no configuration spreadsheet id provided")
+            raise ConfigurationError("no configuration spreadsheet id provided")
         self._gs = GoogleSheet("{}-spreadsheet".format(name), **kwargs)
 
     def is_config_changed(self):

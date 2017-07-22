@@ -37,10 +37,3 @@ class DataSource(object):
         and the shape of the data being stored.
         """
         pass
-
-class DataNotFoundError(RuntimeError):
-    """
-    Raise this exception when the user tries to read data that isn't found in the
-    DataSource.
-    """
-    pass

@@ -8,6 +8,7 @@ import time
 import threading
 
 from . import DataSource
+from fermenator.exception import ConfigurationError, DataValidationError
 
 def set_keepalive_linux(sock, after_idle_sec=15, interval_sec=15, max_fails=5):
     """Set TCP keepalive on an open socket.
@@ -51,7 +52,7 @@ class CarbonDataSource(DataSource):
         try:
             self.host = kwargs['host']
         except KeyError:
-            raise RuntimeError("host must be provided")
+            raise ConfigurationError("host must be provided")
         try:
             self.port = kwargs['port']
         except KeyError:
@@ -85,7 +86,7 @@ class CarbonDataSource(DataSource):
                 try:
                     self.__socket.connect((self.host, self.port))
                 except socket.gaierror as err:
-                    raise RuntimeError("Error connecting: %s", err.__str__())
+                    raise ConnectionError(err.__str__())
             return self.__socket
 
     def set(self, key, value, timestamp=None):
@@ -97,7 +98,7 @@ class CarbonDataSource(DataSource):
         Note, `value` must be a number.
         """
         if not isinstance(value, numbers.Number):
-            raise RuntimeError("bad data for logging to carbon: %s", value)
+            raise DataValidationError("bad data for logging to carbon: %s", value)
         if timestamp is None:
             timestamp = time.time()
         key = '.'.join(key)

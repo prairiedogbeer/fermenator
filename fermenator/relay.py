@@ -6,6 +6,7 @@ import logging
 import gpiozero
 import gpiozero.threads
 import fermenator.i2c
+from .exception import ConfigurationError
 import Adafruit_GPIO
 
 ON = 1
@@ -30,7 +31,7 @@ class Relay(object):
             self._duty_cycle = float(kwargs['duty_cycle'])
             self._cycle_time = float(kwargs['cycle_time'])
         except KeyError:
-            self.log.info("no duty cycle configured (correctly)")
+            self.log.debug("no duty cycle configured")
             self._duty_cycle = None
 
     def __del__(self):
@@ -94,7 +95,8 @@ class GPIORelay(Relay):
         """
         super(GPIORelay, self).__init__(name, **kwargs)
         if "gpio_pin" not in kwargs:
-            raise RuntimeError("No gpio_pin specified in relay configuration")
+            raise ConfigurationError(
+                "No gpio_pin specified in relay configuration")
         try:
             active_high = kwargs['active_high']
         except KeyError:
@@ -149,11 +151,12 @@ class MCP23017Relay(Relay):
         """
         super(MCP23017Relay, self).__init__(name, **kwargs)
         if "mx_pin" not in kwargs:
-            raise RuntimeError("No gpio_pin specified in relay configuration")
+            raise ConfigurationError(
+                "No gpio_pin specified in relay configuration")
         try:
             self.mx_pin = kwargs['mx_pin']
         except KeyError:
-            raise RuntimeError("mx_pin must be provided")
+            raise ConfigurationError("mx_pin must be provided")
         try:
             self.high_signal = kwargs['active_high']
         except KeyError:

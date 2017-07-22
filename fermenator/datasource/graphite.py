@@ -3,7 +3,8 @@ This module contains the datasource for reading temperature and gravity data
 out of carbon/graphite.
 """
 import requests
-from . import DataSource, DataNotFoundError
+from . import DataSource
+from fermenator.exception import DataFetchError, ConfigurationError
 
 class GraphiteDataSource(DataSource):
     """
@@ -22,7 +23,7 @@ class GraphiteDataSource(DataSource):
         """
         super(GraphiteDataSource, self).__init__(name, **kwargs)
         if 'url' not in kwargs:
-            raise RuntimeError("url must be provided in kwargs")
+            raise ConfigurationError("url must be provided in kwargs")
         else:
             self.url = kwargs['url'].rstrip('/')
         self._config = kwargs
@@ -44,8 +45,9 @@ class GraphiteDataSource(DataSource):
             for row in raw_results:
                 yield row
         except IndexError:
-            raise DataNotFoundError("tried to read data that doesn't exist at {}".format(
-                '.'.join(key)
+            raise DataFetchError(
+                "tried to read data that doesn't exist at {}".format(
+                    '.'.join(key)
             ))
 
     def _build_url(self, target, time_limit_s):

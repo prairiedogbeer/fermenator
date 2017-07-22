@@ -6,7 +6,8 @@ import logging
 import pyrebase
 from fermenator.conversions import (
     temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime)
-from . import DataSource, DataNotFoundError
+from fermenator.exception import DataFetchError
+from . import DataSource
 
 class FirebaseDataSource(DataSource):
     """
@@ -53,7 +54,7 @@ class FirebaseDataSource(DataSource):
         keypath = '/' + '/'.join(key) + '/'
         res = self._handle.child(keypath).get().val()
         if res is None:
-            raise DataNotFoundError('no data found at key {}'.format(keypath))
+            raise DataFetchError('no data found at key {}'.format(keypath))
         return res
 
     def set(self, key, value):
@@ -105,20 +106,23 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         val = super(BrewConsoleFirebaseDS, self).get(
             ('brewery', identifier, 'readings', 'gravity'))
         rdata = dict()
-        rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
+        rdata['timestamp'] = unix_timestmap_to_datetime(
+            val['timestamp'])
         rdata['gravity'] = float(val['value'])/1000.0
         if self.gravity_unit == 'P':
             rdata['gravity'] = sg_to_plato(rdata['gravity'])
         return rdata
 
-    def get_temperature(self, identifier):
+    def get_temperature(self, identifier, retries=3):
         """
         Returns the most recent temperture reading for the item at `identifier`
         """
         val = super(BrewConsoleFirebaseDS, self).get(
-            ('brewery', identifier, 'readings', self.temperature_key_name))
+            ('brewery', identifier, 'readings',
+             self.temperature_key_name))
         rdata = dict()
-        rdata['timestamp'] = unix_timestmap_to_datetime(val['timestamp'])
+        rdata['timestamp'] = unix_timestmap_to_datetime(
+            val['timestamp'])
         rdata['temperature'] = float(val['value'])  # celcius
         if self.temperature_unit == 'F':
             rdata['temperature'] = temp_c_to_f(rdata['temperature'])

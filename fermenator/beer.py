@@ -11,10 +11,7 @@ unreliable.
 """
 import logging
 import datetime
-
-class StaleDataError(RuntimeError):
-    "Raise this error when data appears to be out of date"
-    pass
+from .exception import StaleDataError, ConfigurationError, DataFetchError
 
 class AbstractBeer(object):
     """
@@ -126,13 +123,13 @@ class SetPointBeer(AbstractBeer):
         """
         super(SetPointBeer, self).__init__(name, **kwargs)
         if 'datasource' not in self._config:
-            raise RuntimeError("datasource is required in kwargs")
+            raise ConfigurationError("datasource is required in kwargs")
         if 'identifier' not in self._config:
-            raise RuntimeError("no identifier specified in beer config")
+            raise ConfigurationError("no identifier specified in beer config")
         try:
             self._config['set_point'] = float(self._config['set_point'])
         except KeyError:
-            raise RuntimeError("no set_point in kwargs")
+            raise ConfigurationError("no set_point in kwargs")
         if 'tolerance' in self._config:
             self._config['tolerance'] = float(self._config['tolerance'])
         else:
@@ -160,11 +157,20 @@ class SetPointBeer(AbstractBeer):
         self.log.info("configuring set point tolerance at %f", float(value))
         self._config['tolerance'] = value
 
-    def _get_temperature(self):
+    def _get_temperature(self, retries=3):
         "Get the current temperature of the beer, log error if old"
-        data = self.datasource.get_temperature(self._config['identifier'])
-        self.check_timestamp(data['timestamp'])
-        return data['temperature']
+        for _ in range(0, 3):
+            try:
+                data = self.datasource.get_temperature(
+                    self._config['identifier'])
+                self.check_timestamp(data['timestamp'])
+                return data['temperature']
+            except BaseException as err:
+                self.log.warning(
+                    "exception reading/parsing temp from datastore: %s", err)
+        raise DataFetchError(
+            "unable to fetch temperature from datasource after %d tries".format(
+                retries))
 
     def requires_heating(self):
         """
@@ -234,37 +240,60 @@ class LinearBeer(AbstractBeer):
         try:
             self.identifier = self._config['identifier']
         except KeyError:
-            raise RuntimeError("No identifier provided")
+            raise ConfigurationError("No identifier provided")
         try:
             self.original_gravity = float(self._config['original_gravity'])
         except KeyError:
-            raise RuntimeError("original_gravity must be specified")
+            raise ConfigurationError("original_gravity must be specified")
         try:
             self.final_gravity = float(self._config['final_gravity'])
         except KeyError:
-            raise RuntimeError("final_gravity must be specified")
+            raise ConfigurationError("final_gravity must be specified")
         try:
             self.start_set_point = float(self._config['start_set_point'])
         except KeyError:
-            raise RuntimeError("start_set_point must be specified")
+            raise ConfigurationError("start_set_point must be specified")
         try:
             self.end_set_point = float(self._config['end_set_point'])
         except KeyError:
-            raise RuntimeError("end_set_point must be specified")
+            raise ConfigurationError("end_set_point must be specified")
         try:
             self.tolerance = float(self._config['tolerance'])
         except KeyError:
             self.tolerance = 0.5
 
-    def _get_temperature(self):
-        data = self.datasource.get_temperature(self._config['identifier'])
-        self.check_timestamp(data['timestamp'])
-        return data['temperature']
+    def _get_temperature(self, retries=3):
+        """
+        Get temeperature data from the datasource
+        """
+        for _ in range(0, 3):
+            try:
+                data = self.datasource.get_temperature(
+                    self._config['identifier'])
+                self.check_timestamp(data['timestamp'])
+                return data['temperature']
+            except BaseException as err:
+                self.log.warning(
+                    "exception reading/parsing temp from datastore: %s", err)
+        raise DataFetchError(
+            "unable to fetch temperature from datasource after %d tries".format(
+                retries))
 
-    def _get_gravity(self):
-        data = self.datasource.get_gravity(self._config['identifier'])
-        self.check_timestamp(data['timestamp'])
-        return data['gravity']
+    def _get_gravity(self, retries=3):
+        """
+        Get gravity data from the datasource
+        """
+        for _ in range(0, 3):
+            try:
+                data = self.datasource.get_gravity(self._config['identifier'])
+                self.check_timestamp(data['timestamp'])
+                return data['gravity']
+            except BaseException as err:
+                self.log.warning(
+                    "exception reading/parsing gravity from datastore: %s", err)
+        raise DataFetchError(
+            "unable to fetch gravity from datasource after %d tries".format(
+                retries))
 
     def requires_heating(self):
         try:
