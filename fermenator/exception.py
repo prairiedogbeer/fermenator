@@ -36,3 +36,11 @@ class ClassNotFoundError(FermenatorError):
 class ConfigNotFoundError(FermenatorError):
     "Raise this exception when no configuration can be found/loaded"
     pass
+
+class InvalidTemperatureError(FermenatorError):
+    "Raise this when a temperature reading doesn't appear to be valid"
+    pass
+
+class InvalidGravityError(FermenatorError):
+    "Raise this when a gravity reading doesn't appear to be valid"
+    pass

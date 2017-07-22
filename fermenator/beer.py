@@ -11,7 +11,10 @@ unreliable.
 """
 import logging
 import datetime
-from .exception import StaleDataError, ConfigurationError, DataFetchError
+import collections
+from .exception import (
+    StaleDataError, ConfigurationError, DataFetchError,
+    InvalidTemperatureError, InvalidGravityError)
 
 class AbstractBeer(object):
     """
@@ -113,7 +116,12 @@ class AbstractBeer(object):
 class SetPointBeer(AbstractBeer):
     """
     This version of :class:`AbstractBeer` implements a "dumb" set-point
-    approach like you'd find on an STC-1000.
+    approach like you'd find on an STC-1000, with basic hysteresis. Temperature
+    readings are averaged together in a weighted moving average, where the
+    weight of the most recent reading is equivalent to the number of points
+    averaged together (eg. if moving_average_size is set to 10, the most
+    recent point will get a weight of ten, the previous will get a weight of 9,
+    and so on).
     """
 
     def __init__(self, name, **kwargs):
@@ -127,6 +135,12 @@ class SetPointBeer(AbstractBeer):
         - data_age_warning_time (optional, in seconds)
         - gravity_unit (optional, defaults to 'P', plato)
         - temperature_unit (optional, defaults to 'C', celcius)
+        - moving_average_size: optional, number of temperature points to average
+          [default: 5]
+        - max_temp_value: optional, temp readings above this value will result
+          in errors [default: 35.0]
+        - min_temp_value: optional, temp readings below this value will result
+          in errors [default: -5.0]
         """
         super(SetPointBeer, self).__init__(name, **kwargs)
         if 'datasource' not in self._config:
@@ -137,10 +151,25 @@ class SetPointBeer(AbstractBeer):
             self._config['set_point'] = float(self._config['set_point'])
         except KeyError:
             raise ConfigurationError("no set_point in kwargs")
-        if 'tolerance' in self._config:
+        try:
             self._config['tolerance'] = float(self._config['tolerance'])
-        else:
+        except KeyError:
             self._config['tolerance'] = 0.5
+        try:
+            self.moving_average_size = int(kwargs['moving_average_size'])
+        except KeyError:
+            self.moving_average_size = 5
+        try:
+            self.max_temp_value = float(kwargs['max_temp_value'])
+        except KeyError:
+            self.max_temp_value = 35.0
+        try:
+            self.min_temp_value = float(kwargs['min_temp_value'])
+        except KeyError:
+            self.min_temp_value = -5.0
+        self._temp_readings = collections.deque(
+            [None]*self.moving_average_size, self.moving_average_size)
+        self._moving_avg_temp = None
 
     @property
     def set_point(self):
@@ -170,7 +199,15 @@ class SetPointBeer(AbstractBeer):
             try:
                 data = self.datasource.get_temperature(
                     self._config['identifier'])
+                if (data['temperature'] > self.max_temp_value) or \
+                    (data['temperature'] < self.min_temp_value):
+                    raise InvalidTemperatureError(
+                        "temperature {} doesn't appear to be valid".format(
+                            data['temperature']
+                        )
+                    )
                 self.check_timestamp(data['timestamp'])
+                self._add_temp(data['temperature'])
                 return data['temperature']
             except BaseException as err:
                 self.log.warning(
@@ -178,6 +215,23 @@ class SetPointBeer(AbstractBeer):
         raise DataFetchError(
             "unable to fetch temperature from datasource after {} tries".format(
                 retries))
+
+    def _add_temp(self, temp):
+        """
+        Updates the moving average and readings history.
+        """
+        self._temp_readings.append(temp)
+        if self._moving_avg_temp is None:
+            self._moving_avg_temp = temp
+        else:
+            denom = 0
+            numerator = 0
+            for reading in range(self.moving_average_size, 0):
+                if self._temp_readings[reading - 1] is None:
+                    break
+                numerator += reading * self._temp_readings[reading -1]
+                denom += reading
+        self._moving_avg_temp = numerator / float(denom)
 
     def requires_heating(self, heating_state, cooling_state):
         """
@@ -196,10 +250,12 @@ class SetPointBeer(AbstractBeer):
         set_point = self.set_point - self.tolerance
         if heating_state:
             set_point = self.set_point + self.tolerance
-        if temp < set_point:
+        if self._moving_avg_temp < set_point:
             self.log.info(
-                "heating required (temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)",
-                temp, self.set_point, set_point, self.tolerance)
+                "heating required (t_now=%.1f, t_avg=%.1f t_target=%.1f "
+                "t_set_point=%.1f, tolerance=%.2f)",
+                temp, self._moving_avg_temp, self.set_point, set_point,
+                self.tolerance)
             return True
 
     def requires_cooling(self, heating_state, cooling_state):
@@ -217,10 +273,12 @@ class SetPointBeer(AbstractBeer):
         set_point = self.set_point + self.tolerance
         if cooling_state:
             set_point = self.set_point - self.tolerance
-        if temp > set_point:
+        if self._moving_avg_temp > set_point:
             self.log.info(
-                "cooling required (temp=%.1f, target_temp=%.1f set_point=%.1f, tolerance=%.2f)",
-                temp, self.set_point, set_point, self.tolerance)
+                "cooling required (t_now=%.1f, t_avg=%.1f t_target=%.1f "
+                "t_set_point=%.1f, tolerance=%.2f)",
+                temp, self._moving_avg_temp, self.set_point, set_point,
+                self.tolerance)
             return True
 
 class LinearBeer(AbstractBeer):
@@ -256,6 +314,10 @@ class LinearBeer(AbstractBeer):
         - start_set_point (where to start the beer)
         - end_set_point (where to finish the beer)
         - tolerance (optional, defaults to 0.5 degrees)
+        - max_temp_value: optional, raise errors when temp goes above this
+          [default: 35]
+        - min_temp_value: optional, raise errors when temp falls below this
+          [default: -5]
         """
         super(LinearBeer, self).__init__(name, **kwargs)
         try:
@@ -282,6 +344,14 @@ class LinearBeer(AbstractBeer):
             self.tolerance = float(self._config['tolerance'])
         except KeyError:
             self.tolerance = 0.5
+        try:
+            self.max_temp_value = float(kwargs['max_temp_value'])
+        except KeyError:
+            self.max_temp_value = 35.0
+        try:
+            self.min_temp_value = float(kwargs['min_temp_value'])
+        except KeyError:
+            self.min_temp_value = -5.0
 
     def _get_temperature(self, retries=3):
         """
@@ -291,6 +361,13 @@ class LinearBeer(AbstractBeer):
             try:
                 data = self.datasource.get_temperature(
                     self._config['identifier'])
+                if (data['temperature'] > self.max_temp_value) or \
+                    (data['temperature'] < self.min_temp_value):
+                    raise InvalidTemperatureError(
+                        "temperature {} doesn't appear to be valid".format(
+                            data['temperature']
+                        )
+                    )
                 self.check_timestamp(data['timestamp'])
                 return data['temperature']
             except BaseException as err:
