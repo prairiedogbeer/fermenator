@@ -6,6 +6,7 @@ import threading
 import time
 
 import fermenator.statelogger
+from .beer import StaleDataError
 
 class ManagerThread():
     """
@@ -172,14 +173,21 @@ class ManagerThread():
         while not self._stop:
             t_start = time.time()
             self.log.debug("checking on beer: %s", self.beer.name)
-            if self.beer.requires_heating():
-                self._stop_cooling()
-                self._start_heating()
-            elif self.beer.requires_cooling():
-                self._stop_heating()
-                self._start_cooling()
-            else:
-                self.log.info("beer %s is at set point", self.beer.name)
+            try:
+                if self.beer.requires_heating():
+                    self._stop_cooling()
+                    self._start_heating()
+                elif self.beer.requires_cooling():
+                    self._stop_heating()
+                    self._start_cooling()
+                else:
+                    self.log.info("beer %s is at set point", self.beer.name)
+                    self._stop_heating()
+                    self._stop_cooling()
+            except StaleDataError as err:
+                self.log.error(
+                    "TEMPERATURE MANAGEMENT DISABLED: %s",
+                    str(err), exc_info=0)
                 self._stop_heating()
                 self._stop_cooling()
             self._log_state()

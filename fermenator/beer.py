@@ -175,11 +175,7 @@ class SetPointBeer(AbstractBeer):
         """
         if self.set_point is None:
             return False
-        try:
-            temp = self._get_temperature()
-        except StaleDataError as err:
-            self.log.error(str(err), exc_info=0)
-            return False
+        temp = self._get_temperature()
         if self.set_point > (temp + self.tolerance):
             self.log.info(
                 "heating required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
@@ -193,11 +189,7 @@ class SetPointBeer(AbstractBeer):
         """
         if self.set_point is None:
             return False
-        try:
-            temp = self._get_temperature()
-        except RuntimeError as err:
-            self.log.error(str(err), exc_info=0)
-            return False
+        temp = self._get_temperature()
         if (self.set_point + self.tolerance) < temp:
             self.log.info(
                 "cooling required (temp=%.1f, set_point=%.1f, tolerance=%.2f)",
