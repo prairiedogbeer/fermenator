@@ -226,7 +226,7 @@ class SetPointBeer(AbstractBeer):
         else:
             denom = 0
             numerator = 0
-            for reading in range(self.moving_average_size, 0):
+            for reading in range(self.moving_average_size, 0, -1):
                 if self._temp_readings[reading - 1] is None:
                     break
                 numerator += reading * self._temp_readings[reading -1]
