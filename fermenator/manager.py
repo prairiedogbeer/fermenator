@@ -174,10 +174,10 @@ class ManagerThread():
             t_start = time.time()
             self.log.debug("checking on beer: %s", self.beer.name)
             try:
-                if self.beer.requires_heating():
+                if self.beer.requires_heating(self.is_heating(), self.is_cooling()):
                     self._stop_cooling()
                     self._start_heating()
-                elif self.beer.requires_cooling():
+                elif self.beer.requires_cooling(self.is_heating(), self.is_cooling()):
                     self._stop_heating()
                     self._start_cooling()
                 else:
@@ -204,6 +204,20 @@ class ManagerThread():
         """
         self._stop = True
         self.log.info("stopping")
+
+    def is_heating(self):
+        "Returns True if the managed beer is currently being heated"
+        try:
+            return self.active_heating_relay.is_on()
+        except AttributeError:
+            return False
+
+    def is_cooling(self):
+        "Returns True if the managed beer is currently being cooled"
+        try:
+            return self.active_cooling_relay.is_on()
+        except AttributeError:
+            return False
 
     def _start_heating(self):
         """
@@ -258,13 +272,13 @@ class ManagerThread():
     def _log_state(self):
         for logger in self.state_loggers:
             self.state_loggers[logger].log_heartbeat(self.beer)
-        if self.active_heating_relay and self.active_heating_relay.is_on():
+        if self.is_heating():
             for logger in self.state_loggers:
                 self.state_loggers[logger].log_heating_on(self.beer)
         else:
             for logger in self.state_loggers:
                 self.state_loggers[logger].log_heating_off(self.beer)
-        if self.active_cooling_relay and self.active_cooling_relay.is_on():
+        if self.is_cooling():
             for logger in self.state_loggers:
                 self.state_loggers[logger].log_cooling_on(self.beer)
         else:
