@@ -16,7 +16,6 @@ from .datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
 from .datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
 from .datasource.carbon import CarbonDataSource
-from .statelogger import StateLogger
 from .relay import Relay, GPIORelay, MCP23017Relay
 from .beer import AbstractBeer, SetPointBeer, LinearBeer
 from .manager import ManagerThread

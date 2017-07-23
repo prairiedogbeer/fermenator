@@ -28,6 +28,8 @@ class ManagerThread():
         - polling_frequency: how often to check the beer (float)
         - write_datasources: an optional list of datasources to write
           state information to
+        - state_path_prefix: a prefix where to write state information in
+          write_datasources [default: fermenator.state]
 
         """
         self.name = name
@@ -64,6 +66,10 @@ class ManagerThread():
         except KeyError:
             self.log.info("no write datasources defined, state logging disabled")
             self.write_datasources = dict()
+        try:
+            self.state_path_prefix = kwargs['state_path_prefix']
+        except KeyError:
+            self.state_path_prefix = ('fermenator', 'state')
         self._stop = False
         self._thread = threading.Thread(target=self.run)
 
@@ -275,22 +281,23 @@ class ManagerThread():
             now = time.time()
             for logger in self.write_datasources:
                 self.write_datasources[logger].set(
-                    self.path_prefix + (self.name, "heartbeat"), now)
+                    self.state_path_prefix + (self.name, "heartbeat"), now)
             if self.is_heating():
                 for logger in self.write_datasources:
                     self.write_datasources[logger].set(
-                        self.path_prefix + (self.beer.name, "heating"), 1)
+                        self.state_path_prefix + (self.beer.name, "heating"), 1)
             else:
                 for logger in self.write_datasources:
                     self.write_datasources[logger].set(
-                        self.path_prefix + (self.beer.name, "heating"), 0)
+                        self.state_path_prefix + (self.beer.name, "heating"), 0)
             if self.is_cooling():
                 for logger in self.write_datasources:
                     self.write_datasources[logger].set(
-                        self.path_prefix + (self.beer.name, "cooling"), 1)
+                        self.state_path_prefix + (self.beer.name, "cooling"), 1)
             else:
                 for logger in self.write_datasources:
                     self.write_datasources[logger].set(
-                        self.path_prefix + (self.beer.name, "heating"), 0)
+                        self.state_path_prefix + (self.beer.name, "heating"), 0)
         except ConnectionError as err:
-            self.log.error("Error writing state information to datastore: %s", err)
+            self.log.error(
+                "Error writing state information to datastore: %s", err)

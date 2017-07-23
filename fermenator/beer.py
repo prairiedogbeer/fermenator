@@ -302,6 +302,7 @@ class LinearBeer(AbstractBeer):
         """
         Supports the following additional kwargs:
 
+        - read_datasource
         - original_gravity (in Plato or SG depending on gravity_unit)
         - final_gravity (in Plato or SG)
         - start_set_point (where to start the beer)
@@ -313,6 +314,10 @@ class LinearBeer(AbstractBeer):
           [default: -5]
         """
         super(LinearBeer, self).__init__(name, **kwargs)
+        try:
+            self.read_datasource = kwargs['read_datasource']
+        except KeyError:
+            raise ConfigurationError("read_datasource is required in kwargs")
         try:
             self.identifier = self._config['identifier']
         except KeyError:
