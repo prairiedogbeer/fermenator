@@ -129,7 +129,7 @@ class SetPointBeer(AbstractBeer):
         - gravity_unit (optional, defaults to 'P', plato)
         - temperature_unit (optional, defaults to 'C', celcius)
         - moving_average_size: optional, number of temperature points to average
-          [default: 5]
+          [default: 10]
         - max_temp_value: optional, temp readings above this value will result
           in errors [default: 35.0]
         - min_temp_value: optional, temp readings below this value will result
@@ -153,7 +153,7 @@ class SetPointBeer(AbstractBeer):
         try:
             self.moving_average_size = int(kwargs['moving_average_size'])
         except KeyError:
-            self.moving_average_size = 5
+            self.moving_average_size = 10
         try:
             self.max_temp_value = float(kwargs['max_temp_value'])
         except KeyError:
@@ -312,6 +312,8 @@ class LinearBeer(AbstractBeer):
           [default: 35]
         - min_temp_value: optional, raise errors when temp falls below this
           [default: -5]
+        - moving_average_size: optional, number of temperature/gravity points to
+          average [default: 10]
         """
         super(LinearBeer, self).__init__(name, **kwargs)
         try:
@@ -350,6 +352,16 @@ class LinearBeer(AbstractBeer):
             self.min_temp_value = float(kwargs['min_temp_value'])
         except KeyError:
             self.min_temp_value = -5.0
+        try:
+            self.moving_average_size = int(kwargs['moving_average_size'])
+        except KeyError:
+            self.moving_average_size = 10
+        self._temp_readings = collections.deque(
+            [None]*self.moving_average_size, self.moving_average_size)
+        self._moving_avg_temp = None
+        self._grav_readings = collections.deque(
+            [None]*self.moving_average_size, self.moving_average_size)
+        self._moving_avg_grav = None
 
     def _get_temperature(self, retries=3):
         """
@@ -367,6 +379,7 @@ class LinearBeer(AbstractBeer):
                         )
                     )
                 self.check_timestamp(data['timestamp'])
+                self._add_temp(data['temperature'])
                 return data['temperature']
             except BaseException as err:
                 self.log.warning(
@@ -374,6 +387,23 @@ class LinearBeer(AbstractBeer):
         raise DataFetchError(
             "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
+
+    def _add_temp(self, temp):
+        """
+        Updates the moving average and readings history.
+        """
+        self._temp_readings.append(temp)
+        if self._moving_avg_temp is None:
+            self._moving_avg_temp = temp
+        else:
+            denom = 0
+            numerator = 0
+            for reading in range(self.moving_average_size, 0, -1):
+                if self._temp_readings[reading - 1] is None:
+                    break
+                numerator += reading * self._temp_readings[reading -1]
+                denom += reading
+            self._moving_avg_temp = numerator / float(denom)
 
     def _get_gravity(self, retries=3):
         """
@@ -383,6 +413,7 @@ class LinearBeer(AbstractBeer):
             try:
                 data = self.read_datasource.get_gravity(self._config['identifier'])
                 self.check_timestamp(data['timestamp'])
+                self._add_grav(data['gravity'])
                 return data['gravity']
             except BaseException as err:
                 self.log.warning(
@@ -391,6 +422,23 @@ class LinearBeer(AbstractBeer):
             "unable to fetch gravity from read_datasource after {} tries".format(
                 retries))
 
+    def _add_grav(self, grav):
+        """
+        Updates the moving average and readings history.
+        """
+        self._grav_readings.append(grav)
+        if self._moving_avg_grav is None:
+            self._moving_avg_grav = grav
+        else:
+            denom = 0
+            numerator = 0
+            for reading in range(self.moving_average_size, 0, -1):
+                if self._grav_readings[reading - 1] is None:
+                    break
+                numerator += reading * self._grav_readings[reading -1]
+                denom += reading
+            self._moving_avg_grav = numerator / float(denom)
+
     def requires_heating(self, heating_state, cooling_state):
         try:
             gravity = self._get_gravity()
@@ -398,17 +446,18 @@ class LinearBeer(AbstractBeer):
         except StaleDataError as err:
             self.log.error(str(err), exc_info=0)
             return False
-        progress = self.calc_progress(gravity)
+        progress = self.calc_progress(self._moving_avg_grav)
         target = self.current_target_temperature(progress)
         set_point = target - self.tolerance
         if heating_state:
             set_point = target + self.tolerance
-        if current_temp < set_point:
+        if self._moving_avg_temp < set_point:
             self.log.info(
-                ("heating required (gravity=%.2f, progress=%.2fpct, "
-                 "temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)"),
-                gravity, progress*100, current_temp, target, set_point,
-                self.tolerance)
+                ("heating required (g_now=%.2f, g_avg=%.2f, progress=%.2fpct, "
+                 "t_now=%.1f, t_avg=%.1f, t_target=%.1f, t_set_point=%.1f, "
+                 "tolerance=%.2f)"),
+                gravity, self._moving_avg_grav, progress*100, current_temp,
+                self._moving_avg_temp, target, set_point, self.tolerance)
             return True
         return False
 
@@ -419,17 +468,18 @@ class LinearBeer(AbstractBeer):
         except StaleDataError as err:
             self.log.error(str(err), exc_info=0)
             return False
-        progress = self.calc_progress(gravity)
+        progress = self.calc_progress(self._moving_avg_grav)
         target = self.current_target_temperature(progress)
         set_point = target + self.tolerance
         if cooling_state:
             set_point = target - self.tolerance
-        if (current_temp - target) > self.tolerance:
+        if self._moving_avg_temp > set_point:
             self.log.info(
-                ("cooling required (gravity=%.2f, progress=%.2fpct, "
-                 "temp=%.1f, target_temp=%.1f, set_point=%.1f, tolerance=%.2f)"),
-                gravity, progress*100, current_temp, target, set_point,
-                self.tolerance)
+                ("cooling required (g_now=%.2f, g_avg=%.2f, progress=%.2fpct, "
+                 "t_now=%.1f, t_avg=%.1f, t_target=%.1f, t_set_point=%.1f, "
+                 "tolerance=%.2f)"),
+                gravity, self._moving_avg_grav, progress*100, current_temp,
+                self._moving_avg_temp, target, set_point, self.tolerance)
             return True
         return False
 
