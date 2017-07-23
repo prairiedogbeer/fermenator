@@ -69,6 +69,7 @@ class Relay(object):
             self.high_signal = True
         self._last_off_time = None
         self._duty_cycle_thread = None
+        self._last_off_time = time.time()
         self.off()
 
     def __del__(self):
@@ -121,12 +122,6 @@ class Relay(object):
         Returns True if the relay state is on, False otherwise.
         """
         if self._state == OFF:
-            return True
-        return False
-
-    def _is_ready_to_turn_on(self):
-        "Returns True if the relay has been off for more than `minimum_off_time`"
-        if time.time() - self._last_off_time >= self.minimum_off_time:
             return True
         return False
 
