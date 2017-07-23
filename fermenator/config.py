@@ -16,7 +16,6 @@ from .datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
 from .datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
 from .datasource.carbon import CarbonDataSource
-from .statelogger import StateLogger
 from .relay import Relay, GPIORelay, MCP23017Relay
 from .beer import AbstractBeer, SetPointBeer, LinearBeer
 from .manager import ManagerThread
@@ -133,8 +132,8 @@ class FermenatorConfig():
         Reads all the configuration and assembles objects in the correct order.
         """
         self.log.debug("assembling")
-        self.get_relays()
         self.get_datasources()
+        self.get_relays()
         self.get_beers()
         self.get_managers()
 
@@ -328,93 +327,87 @@ class FermenatorConfig():
         klass = default_type
         if 'type' in dict_data:
             klass = str_to_class(dict_data['type'])
-        if issubclass(klass, ManagerThread):
-            dict_data = self._vivify_config_relays(dict_data)
-            dict_data = self._vivify_config_beers(dict_data)
-            dict_data = self._vivify_config_state_logger_ds(dict_data)
-        elif issubclass(klass, AbstractBeer):
-            dict_data = self._vivify_config_datasources(dict_data)
         if dict_data['config'] == 'inherit':
             dict_data['config'] = self._config
+        else:
+            try:
+                dict_data['config']['read_datasource'] = self._get_ds_handle(
+                    dict_data['config']['read_datasource'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['write_datasources'] = self._get_ds_handles(
+                    dict_data['config']['write_datasources'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['active_cooling_relay'] = self._get_relay_handle(
+                    dict_data['config']['active_cooling_relay'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['active_heating_relay'] = self._get_relay_handle(
+                    dict_data['config']['active_heating_relay'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['beer'] = self._get_beer_handle(
+                    dict_data['config']['beer'])
+            except KeyError:
+                pass
         return klass(
             name,
             **dict_data['config']
         )
 
-    def _vivify_config_datasources(self, dict_data):
+    def _get_ds_handle(self, ds_name):
         """
-        Pass this method class configuration data (as would be provided to
-        **kwargs when vivifying a class), and it will search for any
-        specified datasources, replacing textual links with a true object
-        representing that datasource. Not safe to run twice on the same data.
+        Given a DataSource name, try to fetch the real object (must already
+        be loaded into the current class)
         """
         try:
-            dict_data['config']['datasource'] = self._datasources[
-                dict_data['config']['datasource']]
+            return self._datasources[ds_name]
         except KeyError:
             raise ConfigurationError(
-                "error in datasource configuration for beer")
-        return dict_data
+                "datasource {} specified but not loaded".format(ds_name))
 
-    def _vivify_config_state_logger_ds(self, dict_data):
+    def _get_ds_handles(self, ds_list):
         """
-        Pass this method class configuration data (as would be provided to
-        **kwargs when vivifying a class), and it will search for any
-        specified state logger datasources, replacing textual links with a true
-        object representing that datasource. Not safe to run twice on the same
-        data.
+        Given a list of datasource names, return a list of real datasource
+        objects corresponding to those names. Datasources must have already
+        been loaded by meth:`get_datasources`. Note that you may pass a dict
+        to this method, with keys being any name, and values being the names
+        of the datasources you wish to get. Key names will be ignored.
+        """
+        if isinstance(ds_list, dict):
+            return [self._get_ds_handle(ds_list[name]) for name in ds_list]
+        return [self._get_ds_handle(name) for name in ds_list]
+
+    def _get_beer_handle(self, beer_name):
+        """
+        Pass this method a beer name and it will return the corresponding beer
+        object for that name, raising a :class:`ConfigurationError` if the beer
+        hasn't been loaded
         """
         try:
-            state_loggers = dict_data['config']['state_loggers']
-        except KeyError:
-            return dict_data
-        for name in state_loggers:
-            logger_config = state_loggers[name]['config']
-            try:
-                logger_config['datasource'] = \
-                    self._datasources[logger_config['datasource']]
-            except KeyError:
-                raise ConfigurationError(
-                    "state_logger {} defined without datasource".format(name))
-            dict_data['config']['state_loggers'][name] = StateLogger(
-                name, **logger_config)
-        return dict_data
-
-    def _vivify_config_beers(self, dict_data):
-        """
-        Pass this method class configuration data (as would be provided to
-        **kwargs when vivifying a class), and it will search for any
-        specified beers, replacing textual links with a true object
-        representing that beer. Not safe to run twice on the same data.
-        """
-        try:
-            dict_data['config']['beer'] = self._beers[
-                dict_data['config']['beer']]
+            return self._beers[beer_name]
         except KeyError:
             raise ConfigurationError(
-                "error in manager configuration related to beer")
-        return dict_data
+                "beer {} specified in configuration, but not found".format(
+                    beer_name))
 
-    def _vivify_config_relays(self, dict_data):
+    def _get_relay_handle(self, relay_name):
         """
-        Pass this method class configuration data (as would be provided to
-        **kwargs when vivifying a class), and it will search for any
-        specified relays, replacing textual links with a true object
-        representing that relay. Not safe to run twice on the same data.
+        Pass this method a relay name and it will return the corresponding relay
+        object for that name, raising a :class:`ConfigurationError` if the relay
+        hasn't been loaded
         """
-        if 'active_cooling_relay' in dict_data['config']:
-            try:
-                dict_data['config']['active_cooling_relay'] = self._relays[
-                    dict_data['config']['active_cooling_relay']]
-            except KeyError:
-                raise ConfigurationError("error in active_cooling_relay config")
-        if 'active_heating_relay' in dict_data['config']:
-            try:
-                dict_data['config']['active_heating_relay'] = self._relays[
-                    dict_data['config']['active_heating_relay']]
-            except KeyError:
-                raise ConfigurationError("error in active_heating_relay config")
-        return dict_data
+        try:
+            return self._relays[relay_name]
+        except KeyError:
+            raise ConfigurationError(
+                "relay {} specified in configuration, but not found".format(
+                    relay_name))
 
 class DictionaryConfig(FermenatorConfig):
     """
