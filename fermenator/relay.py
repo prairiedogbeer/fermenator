@@ -82,6 +82,7 @@ class Relay(object):
         Supports running the relay in a duty cycle.
         """
         if not self.is_on():
+            self.log.info("turning on relay")
             self._duty_cycle_thread = gpiozero.threads.GPIOThread(
                 target=self._run_duty_cycle)
             self._duty_cycle_thread.start()
@@ -92,11 +93,13 @@ class Relay(object):
         performs the low-level function of switching on the device
         """
         if self._state != ON:
-            self.log.info("turning on")
+            self.log.debug("turning on low-level")
             self._state = ON
 
     def off(self):
         "Turns off the relay"
+        if self.is_on():
+            self.log.info("turning off relay")
         self._stop_duty_cycle()
         self._off_hook()
 
@@ -106,7 +109,7 @@ class Relay(object):
         performs the low-level function of switching the relay off
         """
         if self._state != OFF:
-            self.log.info("turning off")
+            self.log.debug("turning off low-level")
             self._state = OFF
         self._last_off_time = time.time()
 

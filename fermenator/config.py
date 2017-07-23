@@ -172,8 +172,8 @@ class FermenatorConfig():
                     obj.start()
                 fresh = True
                 while fresh:
-                    self.get_config_log_level()
                     time.sleep(self.refresh_interval)
+                    self.get_config_log_level()
                     if not self.stop and self.is_config_changed():
                         self.log.info("detected new configuration data")
                         fresh = False
