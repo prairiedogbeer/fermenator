@@ -58,6 +58,7 @@ class Relay(object):
             self._duty_cycle = float(kwargs['duty_cycle'])
             self._cycle_time = float(kwargs['cycle_time'])
         except KeyError:
+            self.log.debug("No duty cycle configured")
             self._duty_cycle = None
         try:
             self.minimum_off_time = float(kwargs['minimum_off_time'])
@@ -70,6 +71,7 @@ class Relay(object):
         self._last_off_time = None
         self._duty_cycle_thread = None
         self._last_off_time = time.time()
+        self.log.debug("Created with config: %s", self._config)
         self.off()
 
     def __del__(self):
@@ -151,6 +153,7 @@ class Relay(object):
         if self._duty_cycle:
             on_time = self._duty_cycle * self._cycle_time
             off_time = self._cycle_time - on_time
+            self.log.debug("running with %.1f on time", on_time)
         while True:
             self._on_hook()
             if self._duty_cycle_thread.stopping.wait(timeout=on_time):
