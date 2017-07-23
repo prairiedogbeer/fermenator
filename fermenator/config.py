@@ -327,33 +327,34 @@ class FermenatorConfig():
         klass = default_type
         if 'type' in dict_data:
             klass = str_to_class(dict_data['type'])
-        try:
-            dict_data['config']['read_datasource'] = self._get_ds_handle(
-                dict_data['config']['read_datasource'])
-        except KeyError:
-            pass
-        try:
-            dict_data['config']['write_datasources'] = self._get_ds_handles(
-                dict_data['config']['write_datasources'])
-        except KeyError:
-            pass
-        try:
-            dict_data['config']['active_cooling_relay'] = self._get_relay_handle(
-                dict_data['config']['active_cooling_relay'])
-        except KeyError:
-            pass
-        try:
-            dict_data['config']['active_heating_relay'] = self._get_relay_handle(
-                dict_data['config']['active_heating_relay'])
-        except KeyError:
-            pass
-        try:
-            dict_data['config']['beer'] = self._get_beer_handle(
-                dict_data['config']['beer'])
-        except KeyError:
-            pass
         if dict_data['config'] == 'inherit':
             dict_data['config'] = self._config
+        else:
+            try:
+                dict_data['config']['read_datasource'] = self._get_ds_handle(
+                    dict_data['config']['read_datasource'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['write_datasources'] = self._get_ds_handles(
+                    dict_data['config']['write_datasources'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['active_cooling_relay'] = self._get_relay_handle(
+                    dict_data['config']['active_cooling_relay'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['active_heating_relay'] = self._get_relay_handle(
+                    dict_data['config']['active_heating_relay'])
+            except KeyError:
+                pass
+            try:
+                dict_data['config']['beer'] = self._get_beer_handle(
+                    dict_data['config']['beer'])
+            except KeyError:
+                pass
         return klass(
             name,
             **dict_data['config']
