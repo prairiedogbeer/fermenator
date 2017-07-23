@@ -151,7 +151,7 @@ class Relay(object):
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
         on_time = None
-        off_time = 0
+        off_time = None
         if self._duty_cycle:
             on_time = self._duty_cycle * self._cycle_time
             off_time = self._cycle_time - on_time
