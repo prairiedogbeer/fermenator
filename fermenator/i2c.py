@@ -13,7 +13,7 @@ class MCP23017():
     object type, making it into a singleton and ensuring that all operations
     against the chip are mutually exclusive (avoiding colissions).
     """
-    __lock = threading.Lock()
+    __lock = threading.RLock()
     __instance = None
 
     def __init__(self, *args, **kwargs):

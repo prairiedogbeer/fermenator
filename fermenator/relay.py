@@ -253,6 +253,7 @@ class MCP23017Relay(Relay):
         "Actually sends the low-level `on` signal to the relay"
         super(MCP23017Relay, self)._on_hook()
         self._device.output(self.mx_pin, self.high_signal)
+        self.log.debug("turned on at low level")
 
     def _off_hook(self):
         "Sends the low-level signal to turn off the relay"
@@ -261,3 +262,4 @@ class MCP23017Relay(Relay):
             self._device.output(self.mx_pin, not self.high_signal)
         except AttributeError:
             pass
+        self.log.debug("turned off at low level")
