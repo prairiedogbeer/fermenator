@@ -144,7 +144,7 @@ class Relay(object):
         the specified duty cycle config. Meant to be passed to a Thread
         object and run in the background.
         """
-        remaining_time = int(self._last_off_time + self.minimum_off_time - time.time())
+        remaining_time = self._last_off_time + self.minimum_off_time - time.time()
         if remaining_time > 0:
             self.log.info(
                 "waiting %d seconds for minimum_off_time to expire",
