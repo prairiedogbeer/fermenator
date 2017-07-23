@@ -94,13 +94,6 @@ class AbstractBeer(object):
         self.log.info("configuring data_age_warning_time at %f", value)
         self._config['data_age_warning_time'] = value
 
-    @property
-    def datasource(self):
-        """
-        Returns the configured datasource for this beer
-        """
-        return self._config['datasource']
-
     def check_timestamp(self, timestamp):
         """
         Pass a datetime timestamp to this function, it will return True if the date is
@@ -128,7 +121,7 @@ class SetPointBeer(AbstractBeer):
         """
         kwargs can include the following:
 
-        - datasource (object)
+        - read_datasource (object)
         - identifier (the identifier used at the datasource for this beer)
         - set_point (float)
         - tolerance (optional, in the same units as the beer)
@@ -143,8 +136,10 @@ class SetPointBeer(AbstractBeer):
           in errors [default: -5.0]
         """
         super(SetPointBeer, self).__init__(name, **kwargs)
-        if 'datasource' not in self._config:
-            raise ConfigurationError("datasource is required in kwargs")
+        try:
+            self.read_datasource = kwargs['read_datasource']
+        except KeyError:
+            raise ConfigurationError("read_datasource is required in kwargs")
         if 'identifier' not in self._config:
             raise ConfigurationError("no identifier specified in beer config")
         try:
@@ -197,15 +192,13 @@ class SetPointBeer(AbstractBeer):
         "Get the current temperature of the beer, log error if old"
         for _ in range(0, 3):
             try:
-                data = self.datasource.get_temperature(
+                data = self.read_datasource.get_temperature(
                     self._config['identifier'])
                 if (data['temperature'] > self.max_temp_value) or \
                     (data['temperature'] < self.min_temp_value):
                     raise InvalidTemperatureError(
                         "temperature {} doesn't appear to be valid".format(
-                            data['temperature']
-                        )
-                    )
+                            data['temperature']))
                 self.check_timestamp(data['timestamp'])
                 self._add_temp(data['temperature'])
                 return data['temperature']
@@ -213,7 +206,7 @@ class SetPointBeer(AbstractBeer):
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch temperature from datasource after {} tries".format(
+            "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
 
     def _add_temp(self, temp):
@@ -309,6 +302,7 @@ class LinearBeer(AbstractBeer):
         """
         Supports the following additional kwargs:
 
+        - read_datasource
         - original_gravity (in Plato or SG depending on gravity_unit)
         - final_gravity (in Plato or SG)
         - start_set_point (where to start the beer)
@@ -320,6 +314,10 @@ class LinearBeer(AbstractBeer):
           [default: -5]
         """
         super(LinearBeer, self).__init__(name, **kwargs)
+        try:
+            self.read_datasource = kwargs['read_datasource']
+        except KeyError:
+            raise ConfigurationError("read_datasource is required in kwargs")
         try:
             self.identifier = self._config['identifier']
         except KeyError:
@@ -355,11 +353,11 @@ class LinearBeer(AbstractBeer):
 
     def _get_temperature(self, retries=3):
         """
-        Get temeperature data from the datasource
+        Get temeperature data from the read_datasource
         """
         for _ in range(0, 3):
             try:
-                data = self.datasource.get_temperature(
+                data = self.read_datasource.get_temperature(
                     self._config['identifier'])
                 if (data['temperature'] > self.max_temp_value) or \
                     (data['temperature'] < self.min_temp_value):
@@ -374,23 +372,23 @@ class LinearBeer(AbstractBeer):
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch temperature from datasource after {} tries".format(
+            "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
 
     def _get_gravity(self, retries=3):
         """
-        Get gravity data from the datasource
+        Get gravity data from the read_datasource
         """
         for _ in range(0, 3):
             try:
-                data = self.datasource.get_gravity(self._config['identifier'])
+                data = self.read_datasource.get_gravity(self._config['identifier'])
                 self.check_timestamp(data['timestamp'])
                 return data['gravity']
             except BaseException as err:
                 self.log.warning(
                     "exception reading/parsing gravity from datastore: %s", err)
         raise DataFetchError(
-            "unable to fetch gravity from datasource after {} tries".format(
+            "unable to fetch gravity from read_datasource after {} tries".format(
                 retries))
 
     def requires_heating(self, heating_state, cooling_state):
