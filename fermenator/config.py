@@ -131,6 +131,7 @@ class FermenatorConfig():
         """
         Reads all the configuration and assembles objects in the correct order.
         """
+        self.get_config_log_level()
         self.log.debug("assembling")
         self.get_datasources()
         self.get_relays()
@@ -186,6 +187,13 @@ class FermenatorConfig():
         """
         raise NotImplementedError(
             "is_config_changed needs to be implemented in subclass")
+
+    def get_config_log_level(self):
+        """
+        Reads the `log_level` value from configuration and sets fermenator to
+        log at that level.
+        """
+        pass
 
     def get_relay_config(self):
         """
@@ -531,6 +539,17 @@ class FirebaseConfig(FermenatorConfig):
         if self._version == upstream_version:
             return False
         return True
+
+    def get_config_log_level(self):
+        """
+        Retrieve log level configuration from the datastore and set it locally
+        """
+        level = self._fb.get(self.PREFIX + ('log_level',))
+        try:
+            logging.getLogger('fermenator').setLevel(
+                getattr(logging, level.upper()))
+        except AttributeError:
+            self.log.error("invalid log level %s specified", level.upper())
 
     def get_relay_config(self):
         """
