@@ -172,6 +172,7 @@ class FermenatorConfig():
                     obj.start()
                 fresh = True
                 while fresh:
+                    self.get_config_log_level()
                     time.sleep(self.refresh_interval)
                     if not self.stop and self.is_config_changed():
                         self.log.info("detected new configuration data")
@@ -545,6 +546,8 @@ class FirebaseConfig(FermenatorConfig):
         Retrieve log level configuration from the datastore and set it locally
         """
         level = self._fb.get(self.PREFIX + ('log_level',))
+        if level is None:
+            return
         try:
             logging.getLogger('fermenator').setLevel(
                 getattr(logging, level.upper()))
