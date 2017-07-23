@@ -3,6 +3,7 @@ This package includes the firebase-related classes which act as datasources for
 configuration or beer data.
 """
 import logging
+import threading
 import pyrebase
 from fermenator.conversions import (
     temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime)
@@ -14,6 +15,7 @@ class FirebaseDataSource(DataSource):
     Implement a :class:`fermenator.datasource.DataSource` object that provides
     the general methods for accessing firebase.
     """
+    __lock = threading.RLock()
 
     def __init__(self, name, **kwargs):
         """
@@ -43,29 +45,32 @@ class FirebaseDataSource(DataSource):
         Returns an instance of the firebase database object. Caches the object
         locally after the first retrieval.
         """
-        if not self._fb_hndl:
-            self._fb_hndl = pyrebase.initialize_app(self._config).database()
-        return self._fb_hndl
+        with FirebaseDataSource.__lock:
+            if not self._fb_hndl:
+                self._fb_hndl = pyrebase.initialize_app(self._config).database()
+            return self._fb_hndl
 
     def get(self, key):
         """
         Get the datastructure from firebase at key (path)
         """
         keypath = '/' + '/'.join(key) + '/'
-        res = self._handle.child(keypath).get().val()
-        if res is None:
-            raise DataFetchError('no data found at key {}'.format(keypath))
-        return res
+        with FirebaseDataSource.__lock:
+            res = self._handle.child(keypath).get().val()
+            if res is None:
+                raise DataFetchError('no data found at key {}'.format(keypath))
+            return res
 
     def set(self, key, value):
         """
         Set a key-value pair in Firebase. Key must be an iterable of keys
         to traverse in the tree, and value can be a dict, float, int, etc.
         """
-        obj = self._handle
-        for subkey in key:
-            obj = obj.child(subkey)
-        obj.set(value)
+        with FirebaseDataSource.__lock:
+            obj = self._handle
+            for subkey in key:
+                obj = obj.child(subkey)
+            obj.set(value)
 
 class BrewConsoleFirebaseDS(FirebaseDataSource):
     """
