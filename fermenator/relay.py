@@ -3,6 +3,7 @@ This module contains :class:`Relay`-type objects, which represent actual Relay
 devices used to enable or disable heating and cooling of beers.
 """
 import logging
+import time
 import gpiozero
 import gpiozero.threads
 import fermenator.i2c
@@ -20,6 +21,32 @@ class Relay(object):
     """
 
     def __init__(self, name, **kwargs):
+        """
+        The following kwargs are supported:
+
+        - minimum_off_time: optional [default: 0]
+        - duty_cycle: an optional decimal fraction representing the percentage
+          of on time
+        - cycle_time: the overall duration of each duty cycle, in seconds,
+          required if `duty_cycle` is specified
+        - active_high: boolean, True by default
+
+        The `minimum_off_time` parameter allow you to
+        prevent a relay from turning off and on too quickly for whatever the
+        underlying device supports. For example, a compressor needs a minimum
+        of five minutes of off time between cycles, so you should set
+        `minimum_off_time` to 300 seconds.
+
+        ..note::
+
+            minimum_off_time is respected at relay instantiation, meaning that
+            if you set this value, a relay won't turn on until after this time
+            has elapsed after starting fermenator. Also, if you specify both a
+            duty cycle and a minimum off time, the minimum off time is only
+            respected for the initial time period, then the duty cycle config
+            takes over.
+
+        """
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__, self.__class__.__name__,
@@ -31,23 +58,55 @@ class Relay(object):
             self._duty_cycle = float(kwargs['duty_cycle'])
             self._cycle_time = float(kwargs['cycle_time'])
         except KeyError:
-            self.log.debug("no duty cycle configured")
             self._duty_cycle = None
+        try:
+            self.minimum_off_time = float(kwargs['minimum_off_time'])
+        except KeyError:
+            self.minimum_off_time = 0.0
+        try:
+            self.high_signal = kwargs['active_high']
+        except KeyError:
+            self.high_signal = True
+        self._last_off_time = None
+        self._duty_cycle_thread = None
+        self.off()
 
     def __del__(self):
         self.off()
 
     def on(self):
-        "Turns on the relay"
+        """
+        Turn on the relay, taking into account active_high configuration.
+        Supports running the relay in a duty cycle.
+        """
+        self._stop_duty_cycle()
+        self._duty_cycle_thread = gpiozero.threads.GPIOThread(
+            target=self._run_duty_cycle)
+        self._duty_cycle_thread.start()
+
+    def _on_hook(self):
+        """
+        This hook is called whenever the relay is switched on, and actually
+        performs the low-level function of switching on the device
+        """
         if self._state != ON:
             self.log.info("turning on")
             self._state = ON
 
     def off(self):
         "Turns off the relay"
+        self._stop_duty_cycle()
+        self._off_hook()
+
+    def _off_hook(self):
+        """
+        This hook is called whenever the relay is switched off, and actually
+        performs the low-level function of switching the relay off
+        """
         if self._state != OFF:
             self.log.info("turning off")
             self._state = OFF
+        self._last_off_time = time.time()
 
     def is_on(self):
         """
@@ -64,6 +123,46 @@ class Relay(object):
         if self._state == OFF:
             return True
         return False
+
+    def _is_ready_to_turn_on(self):
+        "Returns True if the relay has been off for more than `minimum_off_time`"
+        if time.time() - self._last_off_time >= self.minimum_off_time:
+            return True
+        return False
+
+    def _stop_duty_cycle(self):
+        """
+        Stops any running duty cycle threads
+        """
+        if self._duty_cycle_thread:
+            self._duty_cycle_thread.stop()
+            self._duty_cycle_thread = None
+
+    def _run_duty_cycle(self):
+        """
+        This method makes the relay turn on and off in an infinite loop, using
+        the specified duty cycle config. Meant to be passed to a Thread
+        object and run in the background.
+        """
+        remaining_time = int(self._last_off_time + self.minimum_off_time - time.time())
+        if remaining_time > 0:
+            self.log.info(
+                "waiting %d seconds for minimum_off_time to expire",
+                remaining_time)
+            if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
+                return
+        on_time = None
+        off_time = 0
+        if self._duty_cycle:
+            on_time = self._duty_cycle * self._cycle_time
+            off_time = self._cycle_time - on_time
+        while True:
+            self._on_hook()
+            if self._duty_cycle_thread.stopping.wait(timeout=on_time):
+                break
+            self._off_hook()
+            if self._duty_cycle_thread.stopping.wait(timeout=off_time):
+                break
 
 class GPIORelay(Relay):
     """
@@ -93,38 +192,24 @@ class GPIORelay(Relay):
             of it (such as refrigeration units). Use at your own risk.
 
         """
-        super(GPIORelay, self).__init__(name, **kwargs)
         if "gpio_pin" not in kwargs:
             raise ConfigurationError(
                 "No gpio_pin specified in relay configuration")
-        try:
-            active_high = kwargs['active_high']
-        except KeyError:
-            active_high = True
         self._device = gpiozero.DigitalOutputDevice(
-            pin=int(self._config['gpio_pin']),
-            active_high=active_high,
+            pin=int(kwargs['gpio_pin']),
+            active_high=kwargs['active_high'],
             initial_value=False # keep relay turned off initially
         )
-        self.off()
+        super(GPIORelay, self).__init__(name, **kwargs)
 
-    def on(self):
-        """
-        Turn on the relay at the GPIO pin associated with the instance.
-        """
-        super(GPIORelay, self).on()
-        if self._duty_cycle:
-            on_time = self._duty_cycle * self._cycle_time
-            off_time = self._cycle_time - on_time
-            self._device.blink(on_time=on_time, off_time=off_time)
-        else:
-            self._device.on()
+    def _on_hook(self):
+        "Actually sends the low-level `on` signal to the relay"
+        super(GPIORelay, self)._on_hook()
+        self._device.on()
 
-    def off(self):
-        """
-        Turn off the relay at the GPIO pin associated with the instance.
-        """
-        super(GPIORelay, self).off()
+    def _off_hook(self):
+        "Sends the low-level signal to turn off the relay"
+        super(GPIORelay, self)._off_hook()
         try:
             self._device.off()
         except AttributeError:
@@ -149,7 +234,6 @@ class MCP23017Relay(Relay):
         - cycle_time: a duration of time for entire duty cycle
 
         """
-        super(MCP23017Relay, self).__init__(name, **kwargs)
         if "mx_pin" not in kwargs:
             raise ConfigurationError(
                 "No gpio_pin specified in relay configuration")
@@ -158,10 +242,6 @@ class MCP23017Relay(Relay):
         except KeyError:
             raise ConfigurationError("mx_pin must be provided")
         try:
-            self.high_signal = kwargs['active_high']
-        except KeyError:
-            self.high_signal = True
-        try:
             self.i2c_addr = kwargs['i2c_addr']
         except KeyError:
             self.i2c_addr = 0x20
@@ -169,52 +249,17 @@ class MCP23017Relay(Relay):
             self.i2c_addr
         )
         self._device.setup(self.mx_pin, Adafruit_GPIO.OUT)
-        self._duty_cycle_thread = None
-        self.off()
+        super(MCP23017Relay, self).__init__(name, **kwargs)
 
-    def on(self):
-        """
-        Turn on the relay, taking into account active_high configuration.
-        Supports running the relay in a duty cycle.
-        """
-        super(MCP23017Relay, self).on()
-        self._stop_duty_cycle()
-        if self._duty_cycle:
-            on_time = self._duty_cycle * self._cycle_time
-            off_time = self._cycle_time - on_time
-            self._duty_cycle_thread = gpiozero.threads.GPIOThread(
-                target=self._run_duty_cycle, kwargs={
-                    "on_time": on_time, "off_time": off_time})
-            self._duty_cycle_thread.start()
-        else:
-            self._device.output(self.mx_pin, self.high_signal)
+    def _on_hook(self):
+        "Actually sends the low-level `on` signal to the relay"
+        super(MCP23017Relay, self)._on_hook()
+        self._device.output(self.mx_pin, self.high_signal)
 
-    def off(self):
-        """
-        Turn off the relay, taking into account active_high configuration.
-        """
-        super(MCP23017Relay, self).off()
-        self._stop_duty_cycle()
-        self._device.output(self.mx_pin, not self.high_signal)
-
-    def _stop_duty_cycle(self):
-        """
-        Stops any running duty cycle threads
-        """
-        if self._duty_cycle_thread:
-            self._duty_cycle_thread.stop()
-            self._duty_cycle_thread = None
-
-    def _run_duty_cycle(self, on_time=1200, off_time=1200):
-        """
-        This method makes the relay turn on and off in an infinite loop, using
-        the on_time and off_time specified. Meant to be passed to a Thread
-        object and run in the background.
-        """
-        while True:
-            self._device.output(self.mx_pin, self.high_signal)
-            if self._duty_cycle_thread.stopping.wait(on_time):
-                break
+    def _off_hook(self):
+        "Sends the low-level signal to turn off the relay"
+        try:
+            super(MCP23017Relay, self).off_hook()
             self._device.output(self.mx_pin, not self.high_signal)
-            if self._duty_cycle_thread.stopping.wait(off_time):
-                break
+        except AttributeError:
+            pass
