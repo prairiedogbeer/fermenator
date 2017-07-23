@@ -5,7 +5,6 @@ import logging
 import threading
 import time
 
-import fermenator.statelogger
 from .exception import ConfigurationError, FermenatorError
 
 class ManagerThread():
@@ -27,7 +26,9 @@ class ManagerThread():
         - active_cooling_relay: relay object used for cooling the beer
         - active_heating_relay: relay object used for heating the beer
         - polling_frequency: how often to check the beer (float)
-        - state_loggers: dictionary of state loggers (optional)
+        - write_datasources: an optional list of datasources to write
+          state information to
+
         """
         self.name = name
         if 'beer' not in kwargs:
@@ -59,10 +60,10 @@ class ManagerThread():
         except KeyError:
             self._polling_frequency = 60
         try:
-            self.state_loggers = kwargs['state_loggers']
+            self.write_datasources = kwargs['write_datasources']
         except KeyError:
-            self.log.info("no state loggers defined")
-            self.state_loggers = dict()
+            self.log.info("no write datasources defined, state logging disabled")
+            self.write_datasources = dict()
         self._stop = False
         self._thread = threading.Thread(target=self.run)
 
@@ -270,17 +271,26 @@ class ManagerThread():
             pass
 
     def _log_state(self):
-        for logger in self.state_loggers:
-            self.state_loggers[logger].log_heartbeat(self.beer)
-        if self.is_heating():
-            for logger in self.state_loggers:
-                self.state_loggers[logger].log_heating_on(self.beer)
-        else:
-            for logger in self.state_loggers:
-                self.state_loggers[logger].log_heating_off(self.beer)
-        if self.is_cooling():
-            for logger in self.state_loggers:
-                self.state_loggers[logger].log_cooling_on(self.beer)
-        else:
-            for logger in self.state_loggers:
-                self.state_loggers[logger].log_cooling_off(self.beer)
+        try:
+            now = time.time()
+            for logger in self.write_datasources:
+                self.write_datasources[logger].set(
+                    self.path_prefix + (self.name, "heartbeat"), now)
+            if self.is_heating():
+                for logger in self.write_datasources:
+                    self.write_datasources[logger].set(
+                        self.path_prefix + (self.beer.name, "heating"), 1)
+            else:
+                for logger in self.write_datasources:
+                    self.write_datasources[logger].set(
+                        self.path_prefix + (self.beer.name, "heating"), 0)
+            if self.is_cooling():
+                for logger in self.write_datasources:
+                    self.write_datasources[logger].set(
+                        self.path_prefix + (self.beer.name, "cooling"), 1)
+            else:
+                for logger in self.write_datasources:
+                    self.write_datasources[logger].set(
+                        self.path_prefix + (self.beer.name, "heating"), 0)
+        except ConnectionError as err:
+            self.log.error("Error writing state information to datastore: %s", err)
