@@ -280,23 +280,23 @@ class ManagerThread():
         try:
             now = time.time()
             for logger in self.write_datasources:
-                self.write_datasources[logger].set(
+                logger.set(
                     self.state_path_prefix + (self.name, "heartbeat"), now)
             if self.is_heating():
                 for logger in self.write_datasources:
-                    self.write_datasources[logger].set(
+                    logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 1)
             else:
                 for logger in self.write_datasources:
-                    self.write_datasources[logger].set(
+                    logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 0)
             if self.is_cooling():
                 for logger in self.write_datasources:
-                    self.write_datasources[logger].set(
+                    logger.set(
                         self.state_path_prefix + (self.beer.name, "cooling"), 1)
             else:
                 for logger in self.write_datasources:
-                    self.write_datasources[logger].set(
+                    logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 0)
         except ConnectionError as err:
             self.log.error(
