@@ -213,8 +213,10 @@ class MCP23017Relay(Relay):
         """
         while True:
             self._device.output(self.mx_pin, self.high_signal)
+            super(MCP23017Relay, self).on()
             if self._duty_cycle_thread.stopping.wait(on_time):
                 break
             self._device.output(self.mx_pin, not self.high_signal)
+            super(MCP23017Relay, self).off()
             if self._duty_cycle_thread.stopping.wait(off_time):
                 break
