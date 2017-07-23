@@ -188,7 +188,7 @@ class ManagerThread():
                     self._stop_heating()
                     self._start_cooling()
                 else:
-                    self.log.info("beer %s is at set point", self.beer.name)
+                    self.log.info("at set point")
                     self._stop_heating()
                     self._stop_cooling()
             except FermenatorError as err:
