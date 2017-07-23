@@ -81,10 +81,10 @@ class Relay(object):
         Turn on the relay, taking into account active_high configuration.
         Supports running the relay in a duty cycle.
         """
-        self._stop_duty_cycle()
-        self._duty_cycle_thread = gpiozero.threads.GPIOThread(
-            target=self._run_duty_cycle)
-        self._duty_cycle_thread.start()
+        if not self.is_on():
+            self._duty_cycle_thread = gpiozero.threads.GPIOThread(
+                target=self._run_duty_cycle)
+            self._duty_cycle_thread.start()
 
     def _on_hook(self):
         """
