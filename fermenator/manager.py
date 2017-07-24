@@ -37,9 +37,10 @@ class ManagerThread():
             raise ConfigurationError("'beer' must be specified in kwargs")
         self.beer = kwargs['beer']
         self.log = logging.getLogger(
-            "{}.{}.{}".format(
+            "{}.{}.{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__,
+                self.name,
                 self.beer.name))
         try:
             self._active_cooling = kwargs['active_cooling']
@@ -281,20 +282,16 @@ class ManagerThread():
             for logger in self.write_datasources:
                 logger.set(
                     self.state_path_prefix + (self.name, "heartbeat"), now)
-            if self.is_heating():
-                for logger in self.write_datasources:
+                if self.is_heating():
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 1)
-            else:
-                for logger in self.write_datasources:
+                else:
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 0)
-            if self.is_cooling():
-                for logger in self.write_datasources:
+                if self.is_cooling():
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "cooling"), 1)
-            else:
-                for logger in self.write_datasources:
+                else:
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "cooling"), 0)
         except ConnectionError as err:
