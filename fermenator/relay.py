@@ -81,26 +81,30 @@ class Relay(object):
         Turn on the relay, taking into account active_high configuration.
         Supports running the relay in a duty cycle.
         """
-        if not self.is_on():
-            self.log.info("turning on relay")
-            self._duty_cycle_thread = gpiozero.threads.GPIOThread(
-                target=self._run_duty_cycle)
-            self._duty_cycle_thread.start()
+        if self._duty_cycle_thread:
+            if self._duty_cycle_thread.is_alive():
+                self.log.debug("on called but duty cycle thread already running")
+                return
+            else:
+                self.log.warning("duty cycle thread died and will be restarted")
+                self.off()
+        self._duty_cycle_thread = gpiozero.threads.GPIOThread(
+            target=self._run_duty_cycle)
+        self._duty_cycle_thread.start()
 
     def _on_hook(self):
         """
         This hook is called whenever the relay is switched on, and actually
         performs the low-level function of switching on the device
         """
-        if self._state != ON:
-            self.log.debug("turning on low-level")
-            self._state = ON
+        self.log.debug("switching on")
+        self._state = ON
 
     def off(self):
         "Turns off the relay"
-        if self.is_on():
-            self.log.info("turning off relay")
-        self._stop_duty_cycle()
+        if self._duty_cycle_thread:
+            self.log.debug("shutting down relay duty_cycle thread")
+            self._stop_duty_cycle()
         self._off_hook()
 
     def _off_hook(self):
@@ -108,10 +112,13 @@ class Relay(object):
         This hook is called whenever the relay is switched off, and actually
         performs the low-level function of switching the relay off
         """
+        self.log.debug("switching off")
         if self._state != OFF:
-            self.log.debug("turning off low-level")
-            self._state = OFF
-        self._last_off_time = time.time()
+            # Only change _last_off_time when actually turning off a relay.
+            # You can call off() while a relay is in off-state part of duty cycle
+            # and don't have to wait a full minimum_off_time before turning on.
+            self._last_off_time = time.time()
+        self._state = OFF
 
     def is_on(self):
         """
@@ -146,10 +153,12 @@ class Relay(object):
         remaining_time = self._last_off_time + self.minimum_off_time - time.time()
         if remaining_time > 0:
             self.log.info(
-                "waiting %d seconds for minimum_off_time to expire",
+                "waiting %ds for minimum_off_time to expire before turning on",
                 remaining_time)
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
+        else:
+            self.log.info("duty cycle thread starting")
         on_time = None
         off_time = None
         if self._duty_cycle:
@@ -257,8 +266,8 @@ class MCP23017Relay(Relay):
 
     def _off_hook(self):
         "Sends the low-level signal to turn off the relay"
+        super(MCP23017Relay, self)._off_hook()
         try:
-            super(MCP23017Relay, self)._off_hook()
             self._device.output(self.mx_pin, not self.high_signal)
         except AttributeError:
             pass
