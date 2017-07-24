@@ -67,7 +67,7 @@ class ManagerThread():
             self.log.info("no write datasources defined, state logging disabled")
             self.write_datasources = dict()
         try:
-            self.state_path_prefix = kwargs['state_path_prefix']
+            self.state_path_prefix = tuple(kwargs['state_path_prefix'].split('.'))
         except KeyError:
             self.state_path_prefix = ('fermenator', 'state')
         self._stop = False
@@ -283,18 +283,22 @@ class ManagerThread():
                     self.state_path_prefix + (self.name, "heartbeat"), now)
             if self.is_heating():
                 for logger in self.write_datasources:
+                    self.log.debug("logging 1 for heating to %s", logger)
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 1)
             else:
                 for logger in self.write_datasources:
+                    self.log.debug("logging 0 for heating to %s", logger)
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 0)
             if self.is_cooling():
                 for logger in self.write_datasources:
+                    self.log.debug("logging 1 for cooling to %s", logger)
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "cooling"), 1)
             else:
                 for logger in self.write_datasources:
+                    self.log.debug("logging 0 for cooling to %s", logger)
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 0)
         except ConnectionError as err:
