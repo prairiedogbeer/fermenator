@@ -1,3 +1,5 @@
+import logging
+
 class DataSource(object):
     """
     Represents a generic key-value datastore, where the values may be arbitrary
@@ -11,7 +13,13 @@ class DataSource(object):
         This method will be used in class implementations to configure the datasource
         object.
         """
-        pass
+        self.name = name
+        self._config = kwargs
+        self.log = logging.getLogger(
+            "{}.{}.{}".format(
+                self.__class__.__module__,
+                self.__class__.__name__,
+                name))
 
     def get(self, key):
         """
@@ -37,3 +45,11 @@ class DataSource(object):
         and the shape of the data being stored.
         """
         pass
+
+    def __str__(self):
+        "Returns a string representation of this object"
+        return "{}(\"{}\")".format(self.__class__.__name__, self.name)
+
+    def __repr__(self):
+        "Same as :meth:`__str__`"
+        return self.__str__()

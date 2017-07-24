@@ -48,7 +48,6 @@ class CarbonDataSource(DataSource):
         - enable_keepalive: optional, boolean, Linux/OSX only [default: True]
         """
         super(CarbonDataSource, self).__init__(name, **kwargs)
-        self._config = kwargs
         try:
             self.host = kwargs['host']
         except KeyError:

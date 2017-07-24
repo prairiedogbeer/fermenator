@@ -35,18 +35,12 @@ class GoogleSheet(fermenator.datasource.DataSource):
         """
         This object requires one kwarg, spreadsheet_id.
         """
-        self.log = logging.getLogger(
-            "{}.{}.{}".format(
-                self.__class__.__module__,
-                self.__class__.__name__,
-                name))
         super(GoogleSheet, self).__init__(name, **kwargs)
         self.name = name
         try:
             self._ss_id = kwargs['spreadsheet_id']
         except KeyError:
             raise ConfigurationError("spreadsheet_id must be provided")
-        self._config = kwargs
         #self.log.debug("config: {}".format(self._config))
         self._google_credentials = None
         self._ss_service_handle = None

@@ -26,7 +26,6 @@ class GraphiteDataSource(DataSource):
             raise ConfigurationError("url must be provided in kwargs")
         else:
             self.url = kwargs['url'].rstrip('/')
-        self._config = kwargs
         if 'user' in kwargs and 'password' in kwargs:
             self.auth = (kwargs['user'].strip(), kwargs['password'].strip())
         else:

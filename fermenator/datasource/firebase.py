@@ -32,12 +32,7 @@ class FirebaseDataSource(DataSource):
 
         """
         super(FirebaseDataSource, self).__init__(name, **kwargs)
-        self._config = kwargs
         self._fb_hndl = None
-        self.log = logging.getLogger(
-            "{}.{}.{}".format(
-                self.__class__.__module__,
-                self.__class__.__name__, name))
 
     @property
     def _handle(self):
