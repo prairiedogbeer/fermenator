@@ -112,13 +112,13 @@ class Relay(object):
         This hook is called whenever the relay is switched off, and actually
         performs the low-level function of switching the relay off
         """
-        self.log.debug("switching off")
         if self._state != OFF:
             # Only change _last_off_time when actually turning off a relay.
             # You can call off() while a relay is in off-state part of duty cycle
             # and don't have to wait a full minimum_off_time before turning on.
             self._last_off_time = time.time()
-        self._state = OFF
+            self.log.debug("switching off")
+            self._state = OFF
 
     def is_on(self):
         """
