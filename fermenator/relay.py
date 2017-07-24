@@ -120,6 +120,18 @@ class Relay(object):
             self.log.debug("switching off")
             self._state = OFF
 
+    def is_running(self):
+        """
+        The difference between :meth:`is_running` and :meth:`is_on` is subtle,
+        but important. :meth:`is_on` specifically refers to the relay itself,
+        but what if the relay has been set to run in a duty cycle, and you just
+        want to know if the duty cycle is running? That's when you call this
+        method.
+        """
+        if self._duty_cycle_thread:
+            return True
+        return False
+
     def is_on(self):
         """
         Returns True if the relay state is on, False otherwise.

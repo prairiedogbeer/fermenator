@@ -179,7 +179,6 @@ class ManagerThread():
         self.log.debug("started")
         while not self._stop:
             t_start = time.time()
-            self.log.debug("checking on beer: %s", self.beer.name)
             try:
                 if self.beer.requires_heating(self.is_heating(), self.is_cooling()):
                     self._stop_cooling()
@@ -215,14 +214,14 @@ class ManagerThread():
     def is_heating(self):
         "Returns True if the managed beer is currently being heated"
         try:
-            return self.active_heating_relay.is_on()
+            return self.active_heating_relay.is_running()
         except AttributeError:
             return False
 
     def is_cooling(self):
         "Returns True if the managed beer is currently being cooled"
         try:
-            return self.active_cooling_relay.is_on()
+            return self.active_cooling_relay.is_running()
         except AttributeError:
             return False
 
