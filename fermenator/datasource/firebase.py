@@ -66,6 +66,7 @@ class FirebaseDataSource(DataSource):
             for subkey in key:
                 obj = obj.child(subkey)
             obj.set(value)
+            self.log.debug("set %s to %s", key, value)
 
 class BrewConsoleFirebaseDS(FirebaseDataSource):
     """
