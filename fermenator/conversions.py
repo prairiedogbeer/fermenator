@@ -30,7 +30,7 @@ def unix_timestmap_to_datetime(timestamp):
     Given a unix timestamp of the form 1412312114.1241241241 (with or without
     decimal portions), return a datetime object.
     """
-    return datetime.datetime.utcfromtimestamp(timestamp)
+    return datetime.datetime.fromtimestamp(timestamp)
 
 SPREADSHEET_DATETIME_BASE = datetime.datetime(1899, 12, 30)
 
