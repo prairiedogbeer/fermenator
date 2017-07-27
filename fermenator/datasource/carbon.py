@@ -73,6 +73,7 @@ class CarbonDataSource(DataSource):
         """
         with CarbonDataSource.__lock:
             if not self.__socket:
+                self.log.debug("getting a socket")
                 self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.__socket.settimeout(self.timeout)
                 if self.enable_keepalive:
@@ -113,3 +114,6 @@ class CarbonDataSource(DataSource):
                 self.socket.send(payload)
         except OSError as err:
             self.log.error("Error while writing to carbon: %s", err.__str__())
+            if err.errno == 32:
+                with CarbonDataSource.__lock:
+                    self.__socket == None
