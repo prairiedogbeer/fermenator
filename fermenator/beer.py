@@ -39,20 +39,10 @@ class AbstractBeer(object):
                 self.__class__.__module__,
                 self.__class__.__name__,
                 self._name))
-        self._config = kwargs
-        if 'data_age_warning_time' in self._config:
-            self._config['data_age_warning_time'] = float(
-                self._config['data_age_warning_time'])
-        else:
-            self._config['data_age_warning_time'] = 60 * 30
-        try:
-            self.gravity_unit = self._config['gravity_unit']
-        except KeyError:
-            self.gravity_unit = 'P'
-        try:
-            self.temperature_unit = self._config['temperature_unit']
-        except KeyError:
-            self.temperature_unit = 'C'
+        self.data_age_warning_time = float(kwargs.pop(
+            'data_age_warning_time', 60 * 30))
+        self.gravity_unit = kwargs.pop('gravity_unit', 'P')
+        self.temperature_unit = kwargs.pop('temperature_unit', 'C')
 
     def __del__(self):
         self.log.debug("destructing")
@@ -78,21 +68,6 @@ class AbstractBeer(object):
         a beer is currently being heated or cooled, which influences the
         set point of the system."""
         pass
-
-    @property
-    def data_age_warning_time(self):
-        """
-        Returns the configured data_age_warning_time
-        """
-        return self._config['data_age_warning_time']
-
-    @data_age_warning_time.setter
-    def data_age_warning_time(self, value):
-        """
-        Set the data_age_warning_time
-        """
-        self.log.info("configuring data_age_warning_time at %f", value)
-        self._config['data_age_warning_time'] = value
 
     def check_timestamp(self, timestamp):
         """
@@ -137,63 +112,31 @@ class SetPointBeer(AbstractBeer):
         """
         super(SetPointBeer, self).__init__(name, **kwargs)
         try:
-            self.read_datasource = kwargs['read_datasource']
+            self.read_datasource = kwargs.pop('read_datasource')
         except KeyError:
             raise ConfigurationError("read_datasource is required in kwargs")
-        if 'identifier' not in self._config:
+        try:
+            self.identifier = kwargs.pop('identifier')
+        except KeyError:
             raise ConfigurationError("no identifier specified in beer config")
         try:
-            self._config['set_point'] = float(self._config['set_point'])
+            self.set_point = float(kwargs.pop('set_point'))
         except KeyError:
             raise ConfigurationError("no set_point in kwargs")
-        try:
-            self._config['tolerance'] = float(self._config['tolerance'])
-        except KeyError:
-            self._config['tolerance'] = 0.5
-        try:
-            self.moving_average_size = int(kwargs['moving_average_size'])
-        except KeyError:
-            self.moving_average_size = 10
-        try:
-            self.max_temp_value = float(kwargs['max_temp_value'])
-        except KeyError:
-            self.max_temp_value = 35.0
-        try:
-            self.min_temp_value = float(kwargs['min_temp_value'])
-        except KeyError:
-            self.min_temp_value = -5.0
+        self.tolerance = float(kwargs.pop('tolerance', 0.5))
+        self.moving_average_size = int(kwargs.pop('moving_average_size', 10))
+        self.max_temp_value = float(kwargs.pop('max_temp_value', 35.0))
+        self.min_temp_value = float(kwargs.pop('min_temp_value', -5.0))
         self._temp_readings = collections.deque(
             [None]*self.moving_average_size, self.moving_average_size)
         self._moving_avg_temp = None
-
-    @property
-    def set_point(self):
-        "Returns the configured set point for this beer"
-        return self._config['set_point']
-
-    @set_point.setter
-    def set_point(self, value):
-        "Configure the set point for this beer"
-        self.log.info("configuring set point at %f", float(value))
-        self._config['set_point'] = float(value)
-
-    @property
-    def tolerance(self):
-        "Returns the configured temperature tolerance for this beer"
-        return self._config['tolerance']
-
-    @tolerance.setter
-    def tolerance(self, value):
-        "Set the temperature tolerance for this beer"
-        self.log.info("configuring set point tolerance at %f", float(value))
-        self._config['tolerance'] = value
 
     def _get_temperature(self, retries=3):
         "Get the current temperature of the beer, log error if old"
         for _ in range(0, 3):
             try:
                 data = self.read_datasource.get_temperature(
-                    self._config['identifier'])
+                    self.identifier)
                 if (data['temperature'] > self.max_temp_value) or \
                     (data['temperature'] < self.min_temp_value):
                     raise InvalidTemperatureError(
@@ -317,45 +260,33 @@ class LinearBeer(AbstractBeer):
         """
         super(LinearBeer, self).__init__(name, **kwargs)
         try:
-            self.read_datasource = kwargs['read_datasource']
+            self.read_datasource = kwargs.pop('read_datasource')
         except KeyError:
             raise ConfigurationError("read_datasource is required in kwargs")
         try:
-            self.identifier = self._config['identifier']
+            self.identifier = kwargs.pop('identifier')
         except KeyError:
-            raise ConfigurationError("No identifier provided")
+            raise ConfigurationError("no identifier specified in beer config")
         try:
-            self.original_gravity = float(self._config['original_gravity'])
+            self.original_gravity = float(kwargs.pop('original_gravity')
         except KeyError:
             raise ConfigurationError("original_gravity must be specified")
         try:
-            self.final_gravity = float(self._config['final_gravity'])
+            self.final_gravity = float(kwargs.pop('final_gravity'))
         except KeyError:
             raise ConfigurationError("final_gravity must be specified")
         try:
-            self.start_set_point = float(self._config['start_set_point'])
+            self.start_set_point = float(kwargs.pop('start_set_point'))
         except KeyError:
             raise ConfigurationError("start_set_point must be specified")
         try:
-            self.end_set_point = float(self._config['end_set_point'])
+            self.end_set_point = float(kwargs.pop('end_set_point'))
         except KeyError:
             raise ConfigurationError("end_set_point must be specified")
-        try:
-            self.tolerance = float(self._config['tolerance'])
-        except KeyError:
-            self.tolerance = 0.5
-        try:
-            self.max_temp_value = float(kwargs['max_temp_value'])
-        except KeyError:
-            self.max_temp_value = 35.0
-        try:
-            self.min_temp_value = float(kwargs['min_temp_value'])
-        except KeyError:
-            self.min_temp_value = -5.0
-        try:
-            self.moving_average_size = int(kwargs['moving_average_size'])
-        except KeyError:
-            self.moving_average_size = 10
+        self.tolerance = float(kwargs.pop('tolerance', 0.5))
+        self.max_temp_value = float(kwargs.pop('max_temp_value', 35.0))
+        self.min_temp_value = float(kwargs.pop('min_temp_value', -5.0))
+        self.moving_average_size = int(kwargs.pop('moving_average_size', 10)
         self._temp_readings = collections.deque(
             [None]*self.moving_average_size, self.moving_average_size)
         self._moving_avg_temp = None
@@ -411,7 +342,7 @@ class LinearBeer(AbstractBeer):
         """
         for _ in range(0, 3):
             try:
-                data = self.read_datasource.get_gravity(self._config['identifier'])
+                data = self.read_datasource.get_gravity(self.identifier)
                 self.check_timestamp(data['timestamp'])
                 self._add_grav(data['gravity'])
                 return data['gravity']
