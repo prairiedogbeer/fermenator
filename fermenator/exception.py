@@ -18,6 +18,10 @@ class DataFetchError(FermenatorError):
     "Raise this exception when an error occurs during data fetch operations"
     pass
 
+class DataWriteError(FermenatorError):
+    "Raise this exception when an error occurs during data fetch operations"
+    pass
+
 class ConfigurationError(FermenatorError):
     "Raise this exception when a configuration error is detected"
     pass

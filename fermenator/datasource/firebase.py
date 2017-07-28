@@ -2,12 +2,12 @@
 This package includes the firebase-related classes which act as datasources for
 configuration or beer data.
 """
-import logging
 import threading
 import pyrebase
+import requests.exceptions
 from fermenator.conversions import (
     temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime)
-from fermenator.exception import DataFetchError
+from fermenator.exception import DataFetchError, DataWriteError
 from . import DataSource
 
 class FirebaseDataSource(DataSource):
@@ -42,6 +42,7 @@ class FirebaseDataSource(DataSource):
         """
         with FirebaseDataSource.__lock:
             if not self._fb_hndl:
+                self.log.debug("getting new firebase handle")
                 self._fb_hndl = pyrebase.initialize_app(self._config).database()
             return self._fb_hndl
 
@@ -51,10 +52,14 @@ class FirebaseDataSource(DataSource):
         """
         keypath = '/' + '/'.join(key) + '/'
         with FirebaseDataSource.__lock:
-            res = self._handle.child(keypath).get().val()
-            if res is None:
-                raise DataFetchError('no data found at key {}'.format(keypath))
-            return res
+            try:
+                res = self._handle.child(keypath).get().val()
+                if res is None:
+                    raise DataFetchError('no data found at key {}'.format(keypath))
+                return res
+            except requests.exceptions.HTTPError as err:
+                self._handle = None
+                raise DataFetchError("read from firebase failed: {}".format(err))
 
     def set(self, key, value):
         """
@@ -62,10 +67,14 @@ class FirebaseDataSource(DataSource):
         to traverse in the tree, and value can be a dict, float, int, etc.
         """
         with FirebaseDataSource.__lock:
-            obj = self._handle
-            for subkey in key:
-                obj = obj.child(subkey)
-            obj.set(value)
+            try:
+                obj = self._handle
+                for subkey in key:
+                    obj = obj.child(subkey)
+                obj.set(value)
+            except requests.exceptions.HTTPError as err:
+                self._handle = None
+                raise DataWriteError("write to firebase failed: {}".format(err))
 
 class BrewConsoleFirebaseDS(FirebaseDataSource):
     """
@@ -113,7 +122,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
             rdata['gravity'] = sg_to_plato(rdata['gravity'])
         return rdata
 
-    def get_temperature(self, identifier, retries=3):
+    def get_temperature(self, identifier):
         """
         Returns the most recent temperture reading for the item at `identifier`
         """
