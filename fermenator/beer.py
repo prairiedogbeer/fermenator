@@ -14,7 +14,7 @@ import datetime
 import collections
 from .exception import (
     StaleDataError, ConfigurationError, DataFetchError,
-    InvalidTemperatureError, InvalidGravityError)
+    InvalidTemperatureError)
 
 class AbstractBeer(object):
     """
@@ -268,7 +268,7 @@ class LinearBeer(AbstractBeer):
         except KeyError:
             raise ConfigurationError("no identifier specified in beer config")
         try:
-            self.original_gravity = float(kwargs.pop('original_gravity')
+            self.original_gravity = float(kwargs.pop('original_gravity'))
         except KeyError:
             raise ConfigurationError("original_gravity must be specified")
         try:
@@ -286,7 +286,7 @@ class LinearBeer(AbstractBeer):
         self.tolerance = float(kwargs.pop('tolerance', 0.5))
         self.max_temp_value = float(kwargs.pop('max_temp_value', 35.0))
         self.min_temp_value = float(kwargs.pop('min_temp_value', -5.0))
-        self.moving_average_size = int(kwargs.pop('moving_average_size', 10)
+        self.moving_average_size = int(kwargs.pop('moving_average_size', 10))
         self._temp_readings = collections.deque(
             [None]*self.moving_average_size, self.moving_average_size)
         self._moving_avg_temp = None
@@ -300,8 +300,7 @@ class LinearBeer(AbstractBeer):
         """
         for _ in range(0, 3):
             try:
-                data = self.read_datasource.get_temperature(
-                    self._config['identifier'])
+                data = self.read_datasource.get_temperature(self.identifier)
                 if (data['temperature'] > self.max_temp_value) or \
                     (data['temperature'] < self.min_temp_value):
                     raise InvalidTemperatureError(
