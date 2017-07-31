@@ -145,10 +145,13 @@ class FermenatorConfig():
         """
         self.log.debug("disassembling")
         for name, obj in self._managers.items():
-            obj.stop()
-            obj.join(30.0)
-            if obj.isAlive():
-                self.log.error("manager thread %s could not be stopped", name)
+            if obj.is_alive():
+                obj.stop()
+                obj.join(30.0)
+                if obj.is_alive():
+                    self.log.error("manager thread %s could not be stopped", name)
+            else:
+                self.log.error("manager thread %s died along the way", name)
         self._managers = dict()
         self._beers = dict()
         self._datasources = dict()

@@ -95,11 +95,11 @@ class ManagerThread():
         """
         self._thread.join(timeout)
 
-    def isAlive(self):
+    def is_alive(self):
         """
-        Pass-through to thread isAlive() method.
+        Pass-through to thread is_alive() method.
         """
-        return self._thread.isAlive()
+        return self._thread.is_alive()
 
     @property
     def polling_frequency(self):
