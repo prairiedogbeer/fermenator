@@ -185,7 +185,7 @@ class SetPointBeer(AbstractBeer):
         temp = self._get_temperature()
         set_point = self.set_point - self.tolerance
         if heating_state:
-            set_point = self.set_point + self.tolerance
+            set_point = self.set_point
         if self._moving_avg_temp < set_point:
             self.log.info(
                 "heating required (t_now=%.1f, t_avg=%.1f t_target=%.1f "
@@ -208,7 +208,7 @@ class SetPointBeer(AbstractBeer):
         temp = self._get_temperature()
         set_point = self.set_point + self.tolerance
         if cooling_state:
-            set_point = self.set_point - self.tolerance
+            set_point = self.set_point
         if self._moving_avg_temp > set_point:
             self.log.info(
                 "cooling required (t_now=%.1f, t_avg=%.1f t_target=%.1f "
@@ -380,7 +380,7 @@ class LinearBeer(AbstractBeer):
         target = self.current_target_temperature(progress)
         set_point = target - self.tolerance
         if heating_state:
-            set_point = target + self.tolerance
+            set_point = target
         if self._moving_avg_temp < set_point:
             self.log.info(
                 ("heating required (g_now=%.2f, g_avg=%.2f, progress=%.2fpct, "
@@ -402,7 +402,7 @@ class LinearBeer(AbstractBeer):
         target = self.current_target_temperature(progress)
         set_point = target + self.tolerance
         if cooling_state:
-            set_point = target - self.tolerance
+            set_point = target
         if self._moving_avg_temp > set_point:
             self.log.info(
                 ("cooling required (g_now=%.2f, g_avg=%.2f, progress=%.2fpct, "
