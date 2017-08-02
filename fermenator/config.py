@@ -20,8 +20,8 @@ from .relay import Relay, GPIORelay, MCP23017Relay
 from .beer import AbstractBeer, SetPointBeer, LinearBeer
 from .manager import ManagerThread
 from .exception import (
-    ConfigurationError, ClassNotFoundError, ConfigNotFoundError)
-
+    ConfigurationError, ClassNotFoundError, ConfigNotFoundError,
+    DataFetchError)
 def bootstrap():
     """
     Returns a fully configured :class:`FermenatorConfig` object or one of its
@@ -176,10 +176,14 @@ class FermenatorConfig():
                 fresh = True
                 while fresh:
                     time.sleep(self.refresh_interval)
-                    self.get_config_log_level()
-                    if not self.stop and self.is_config_changed():
-                        self.log.info("detected new configuration data")
-                        fresh = False
+                    try:
+                        self.get_config_log_level()
+                        if not self.stop and self.is_config_changed():
+                            self.log.info("detected new configuration data")
+                            fresh = False
+                    except DataFetchError as err:
+                        self.log.error(
+                            "error checking for config changes: %s", err)
                 self.disassemble()
         except KeyboardInterrupt:
             self.disassemble()
