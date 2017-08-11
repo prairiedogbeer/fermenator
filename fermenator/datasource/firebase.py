@@ -58,7 +58,7 @@ class FirebaseDataSource(DataSource):
                     raise DataFetchError('no data found at key {}'.format(keypath))
                 return res
             except requests.exceptions.HTTPError as err:
-                self._handle = None
+                self._fb_hndl = None
                 raise DataFetchError("read from firebase failed: {}".format(err))
 
     def set(self, key, value):
@@ -73,7 +73,7 @@ class FirebaseDataSource(DataSource):
                     obj = obj.child(subkey)
                 obj.set(value)
             except requests.exceptions.HTTPError as err:
-                self._handle = None
+                self._fb_hndl = None
                 raise DataWriteError("write to firebase failed: {}".format(err))
 
 class BrewConsoleFirebaseDS(FirebaseDataSource):
