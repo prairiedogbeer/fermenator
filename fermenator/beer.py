@@ -431,3 +431,31 @@ class LinearBeer(AbstractBeer):
         progress of fermentation.
         """
         return (self.end_set_point - self.start_set_point) * progress + self.start_set_point
+
+class DampenedBeer(LinearBeer):
+    """
+    This type of beer works almost the same as LinearBeer, except that instead
+    of the temperature of the beer being ramped linearly as the gravity goes
+    down, the warming is dampened such that most of the ramping occurs late in
+    fermentation. All of the options are the same as for LinearBeer, with the
+    exception of the new option, `damping_factor`, which should be a float
+    between 0 and 1.0, where higher values result in more of the warming
+    happening during the last 10-15 percent of
+    fermentation. The default damping factor is 0.6, which results in only 1/8th
+    of the warming occuring by 40 percent of fermentation, 1/2 by 80 percent,
+    and the rest occuring during the final 20 percent of fermentation.
+    """
+
+    def __init__(self, name, **kwargs):
+        super(DampenedBeer, self).__init__(name, **kwargs)
+        self.damping_factor = float(kwargs.pop('damping_factor', 0.6))
+
+    def current_target_temperature(self, progress):
+        """
+        Calculates the temperature target using a formula similar to this:
+
+            (progress * (1 - damping_factor) / (2 - damping_factor - progress)) * (t_end - t_start) + t_start
+        """
+        return (progress * (1 - self.damping_factor) / \
+            (2 - self.damping_factor - progress)) * \
+            (self.end_set_point - self.start_set_point) + self.start_set_point
