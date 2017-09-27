@@ -3,6 +3,7 @@ This package includes the firebase-related classes which act as datasources for
 configuration or beer data.
 """
 import threading
+import ssl
 import pyrebase
 import requests.exceptions
 from fermenator.conversions import (
@@ -57,7 +58,7 @@ class FirebaseDataSource(DataSource):
                 if res is None:
                     raise DataFetchError('no data found at key {}'.format(keypath))
                 return res
-            except requests.exceptions.HTTPError as err:
+            except (requests.exceptions.HTTPError, ssl.SSLError) as err:
                 self._fb_hndl = None
                 raise DataFetchError("read from firebase failed: {}".format(err))
 
@@ -72,7 +73,7 @@ class FirebaseDataSource(DataSource):
                 for subkey in key:
                     obj = obj.child(subkey)
                 obj.set(value)
-            except requests.exceptions.HTTPError as err:
+            except (requests.exceptions.HTTPError, ssl.SSLError) as err:
                 self._fb_hndl = None
                 raise DataWriteError("write to firebase failed: {}".format(err))
 

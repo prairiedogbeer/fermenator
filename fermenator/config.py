@@ -22,6 +22,7 @@ from .manager import ManagerThread
 from .exception import (
     ConfigurationError, ClassNotFoundError, ConfigNotFoundError,
     DataFetchError)
+
 def bootstrap():
     """
     Returns a fully configured :class:`FermenatorConfig` object or one of its
