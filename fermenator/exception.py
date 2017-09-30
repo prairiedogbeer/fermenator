@@ -14,11 +14,19 @@ class StaleDataError(FermenatorError):
     "Raise this error when data appears to be out of date"
     pass
 
-class DataFetchError(FermenatorError):
+class DataSourceError(FermenatorError):
+    "Generic parent class for all datasource related errors"
+    pass
+
+class DSConnectionError(DataSourceError):
+    "Raise this when a connection to a datasource fails to be established"
+    pass
+
+class DataFetchError(DataSourceError):
     "Raise this exception when an error occurs during data fetch operations"
     pass
 
-class DataWriteError(FermenatorError):
+class DataWriteError(DataSourceError):
     "Raise this exception when an error occurs during data fetch operations"
     pass
 

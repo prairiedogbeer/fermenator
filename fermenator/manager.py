@@ -5,7 +5,8 @@ import logging
 import threading
 import time
 
-from .exception import ConfigurationError, FermenatorError
+from .exception import (
+    ConfigurationError, FermenatorError, DataSourceError)
 
 class ManagerThread():
     """
@@ -294,6 +295,6 @@ class ManagerThread():
                 else:
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "cooling"), 0)
-        except ConnectionError as err:
+        except DataSourceError as err:
             self.log.error(
                 "Error writing state information to datastore: %s", err)

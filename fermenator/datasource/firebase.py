@@ -8,7 +8,8 @@ import pyrebase
 import requests.exceptions
 from fermenator.conversions import (
     temp_c_to_f, sg_to_plato, unix_timestmap_to_datetime)
-from fermenator.exception import DataFetchError, DataWriteError
+from fermenator.exception import (
+    DataFetchError, DataWriteError, DSConnectionError)
 from . import DataSource
 
 class FirebaseDataSource(DataSource):
@@ -43,8 +44,14 @@ class FirebaseDataSource(DataSource):
         """
         with FirebaseDataSource.__lock:
             if not self._fb_hndl:
-                self.log.debug("getting new firebase handle")
-                self._fb_hndl = pyrebase.initialize_app(self._config).database()
+                self.log.info("getting new firebase handle")
+                try:
+                    self._fb_hndl = pyrebase.initialize_app(
+                        self._config).database()
+                except (requests.exceptions.HTTPError, ssl.SSLError) as err:
+                    self._fb_hndl = None
+                    raise DSConnectionError(
+                        "connect to firebase failed: {}".format(err))
             return self._fb_hndl
 
     def get(self, key):
