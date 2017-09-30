@@ -113,7 +113,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         """
         Returns the most recent gravity reading for the item at `identifier`
         """
-        val = super(BrewConsoleFirebaseDS, self).get(
+        val = self.get(
             ('brewery', identifier, 'readings', 'gravity'))
         rdata = dict()
         rdata['timestamp'] = unix_timestmap_to_datetime(
@@ -127,7 +127,7 @@ class BrewConsoleFirebaseDS(FirebaseDataSource):
         """
         Returns the most recent temperture reading for the item at `identifier`
         """
-        val = super(BrewConsoleFirebaseDS, self).get(
+        val = self.get(
             ('brewery', identifier, 'readings',
              self.temperature_key_name))
         rdata = dict()
