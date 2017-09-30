@@ -81,6 +81,19 @@ class AbstractBeer(object):
                     self.name,
                     timestamp.strftime('%Y-%m-%d %H:%M:%S')))
 
+class NoOpBeer(AbstractBeer):
+    """
+    This beer always reports that no heating or cooling is required. Assign
+    this type of beer to a fermentor that is empty or being cleaned.
+    """
+    def requires_heating(self, heating_state, cooling_state):
+        "Always returns false"
+        return False
+
+    def requires_cooling(self, heating_state, cooling_state):
+        "Always returns false"
+        return False
+
 class SetPointBeer(AbstractBeer):
     """
     This version of :class:`AbstractBeer` implements a "dumb" set-point
