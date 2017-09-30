@@ -14,7 +14,7 @@ import datetime
 import collections
 from .exception import (
     StaleDataError, ConfigurationError, DataFetchError,
-    InvalidTemperatureError)
+    InvalidTemperatureError, DataSourceError)
 
 class AbstractBeer(object):
     """
@@ -158,7 +158,7 @@ class SetPointBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_temp(data['temperature'])
                 return data['temperature']
-            except BaseException as err:
+            except (DataSourceError, StaleDataError) as err:
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
@@ -324,7 +324,7 @@ class LinearBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_temp(data['temperature'])
                 return data['temperature']
-            except BaseException as err:
+            except (DataSourceError, StaleDataError) as err:
                 self.log.warning(
                     "exception reading/parsing temp from datastore: %s", err)
         raise DataFetchError(
@@ -358,7 +358,7 @@ class LinearBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_grav(data['gravity'])
                 return data['gravity']
-            except BaseException as err:
+            except (DataSourceError, StaleDataError) as err:
                 self.log.warning(
                     "exception reading/parsing gravity from datastore: %s", err)
         raise DataFetchError(
