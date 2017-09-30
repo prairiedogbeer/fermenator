@@ -17,7 +17,7 @@ from .datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
 from .datasource.carbon import CarbonDataSource
 from .relay import Relay, GPIORelay, MCP23017Relay
-from .beer import AbstractBeer, SetPointBeer, LinearBeer, DampenedBeer
+from .beer import AbstractBeer, SetPointBeer, LinearBeer, DampenedBeer, NoOpBeer
 from .manager import ManagerThread
 from .exception import (
     ConfigurationError, ClassNotFoundError, ConfigNotFoundError,
