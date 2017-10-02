@@ -68,7 +68,6 @@ class Relay(object):
             self.high_signal = kwargs['active_high']
         except KeyError:
             self.high_signal = True
-        self._last_off_time = None
         self._duty_cycle_thread = None
         self._last_off_time = time.time()
         self.off()
@@ -148,6 +147,20 @@ class Relay(object):
             return True
         return False
 
+    def alter_duty_cycle(self, duty_cycle_pct):
+        """
+        Change the duty cycle of an already instantiated relay. Handles the
+        logic of stopping an existing duty cycle thread and starting it back
+        up with new settings, if already running. Does not start the thread
+        if the current relay state is off. Only allows changing the percentage
+        of on time not the cycle duration, which is a much more static property.
+        """
+        relay_was_on = self._duty_cycle_thread
+        self.off()
+        self._duty_cycle = duty_cycle_pct
+        if relay_was_on:
+            self.on()
+
     def _stop_duty_cycle(self):
         """
         Stops any running duty cycle threads
@@ -170,7 +183,8 @@ class Relay(object):
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
         else:
-            self.log.info("duty cycle thread starting")
+            self.log.info(
+                "duty cycle thread starting at %0.2f", self._duty_cycle)
         on_time = None
         off_time = None
         if self._duty_cycle:
