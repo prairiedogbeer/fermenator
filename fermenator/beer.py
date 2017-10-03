@@ -311,6 +311,10 @@ class LinearBeer(AbstractBeer):
             [None]*self.moving_average_size, self.moving_average_size)
         self._moving_avg_grav = None
 
+    def avg_temp(self):
+        "Returns the locally cached version of the moving average temperature"
+        return self._moving_avg_temp
+
     def _get_temperature(self, retries=3):
         """
         Get temeperature data from the read_datasource
