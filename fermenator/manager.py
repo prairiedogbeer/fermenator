@@ -65,11 +65,9 @@ class ManagerThread():
         self._thread = threading.Thread(target=self.run)
         self._heat_duty_cycle = None
         self._cool_duty_cycle = None
-        self._last_heat_duty_change_poll = None
-        self._last_cool_duty_change_poll = None
-        self._last_heat_on_time = None
+        self._last_heat_duty_change_poll = 0
+        self._last_cool_duty_change_poll = 0
         self._last_cool_on_time = None
-        self._last_heat_on_temp = None
         self._last_cool_on_temp = None
 
     def __del__(self):
@@ -234,17 +232,21 @@ class ManagerThread():
         if self.active_heating:
             try:
                 if not self.active_heating_relay.is_running():
-                    self._last_heat_on_time = time.time()
                     self._last_heat_on_temp = self.beer.avg_temp()
                     self.active_heating_relay.on()
+                    self._last_heat_duty_change_poll = self._current_poll
                 elif (self._current_poll - self._last_heat_duty_change_poll) \
                     > self._npolls_wait_duty_change:
                     delta_t = self.beer.avg_temp() - self._last_heat_on_temp
                     efficacy_now = delta_t / (self._current_poll - \
                         self._last_heat_duty_change_poll)
                     if efficacy_now < self._target_efficacy:
+                        self._last_heat_on_temp = self.beer.avg_temp()
+                        self._last_heat_duty_change_poll = self._current_poll
                         self._increase_heating_efficacy()
                     elif efficacy_now > self._target_efficacy:
+                        self._last_heat_on_temp = self.beer.avg_temp()
+                        self._last_heat_duty_change_poll = self._current_poll
                         self._decrease_heating_efficacy()
             except AttributeError as err:
                 self.log.warning(
@@ -296,8 +298,8 @@ class ManagerThread():
         if self.active_cooling:
             try:
                 if not self.active_cooling_relay.is_running():
-                    self._last_cool_on_time = time.time()
                     self._last_cool_on_temp = self.beer.avg_temp()
+                    self._last_cool_duty_change_poll = self._current_poll
                     self.active_cooling_relay.on()
                 elif (self._current_poll - self._last_cool_duty_change_poll) \
                     > self._npolls_wait_duty_change:
@@ -305,8 +307,12 @@ class ManagerThread():
                     efficacy_now = delta_t / (self._current_poll - \
                         self._last_cool_duty_change_poll)
                     if efficacy_now < (-1 * self._target_efficacy):
+                        self._last_cool_on_temp = self.beer.avg_temp()
+                        self._last_cool_duty_change_poll = self._current_poll
                         self._decrease_cooling_efficacy()
                     elif efficacy_now > (-1 * self._target_efficacy):
+                        self._last_cool_on_temp = self.beer.avg_temp()
+                        self._last_cool_duty_change_poll = self._current_poll
                         self._increase_cooling_efficacy()
             except AttributeError:
                 self.log.warning(
