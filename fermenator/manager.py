@@ -43,37 +43,34 @@ class ManagerThread():
                 self.__class__.__name__,
                 self.name,
                 self.beer.name))
-        try:
-            self._active_cooling = kwargs['active_cooling']
-        except KeyError:
-            self._active_cooling = False
-        try:
-            self._active_heating = kwargs['active_heating']
-        except KeyError:
-            self._active_heating = False
-        try:
-            self._active_cooling_relay = kwargs['active_cooling_relay']
-        except KeyError:
-            self._active_cooling_relay = None
-        try:
-            self._active_heating_relay = kwargs['active_heating_relay']
-        except KeyError:
-            self._active_heating_relay = None
-        try:
-            self._polling_frequency = float(kwargs['polling_frequency'])
-        except KeyError:
-            self._polling_frequency = 60
+        self._active_cooling = kwargs.pop('active_cooling', False)
+        self._active_heating = kwargs.pop('active_heating', False)
+        self._active_cooling_relay = kwargs.pop('active_cooling_relay', None)
+        self._active_heating_relay = kwargs.pop('active_heating_relay', None)
+        self._polling_frequency = float(kwargs.pop('polling_frequency', 60))
+        self._target_efficacy = float(
+            kwargs.pop('target_efficacy', 1 / 60.0))
         try:
             self.write_datasources = kwargs['write_datasources']
         except KeyError:
             self.log.info("no write datasources defined, state logging disabled")
             self.write_datasources = dict()
-        try:
-            self.state_path_prefix = tuple(kwargs['state_path_prefix'].split('.'))
-        except KeyError:
-            self.state_path_prefix = ('fermenator', 'state')
+        self.state_path_prefix = tuple(
+            kwargs.pop('state_path_prefix', "fermenator.state").split('.'))
+        self._npolls_wait_duty_change = 5
+        self._heat_duty_cycle_increment = 0.05
+        self._cool_duty_cycle_increment = 0.01
+        self._current_poll = 0
         self._stop = False
         self._thread = threading.Thread(target=self.run)
+        self._heat_duty_cycle = None
+        self._cool_duty_cycle = None
+        self._last_heat_duty_change_poll = None
+        self._last_cool_duty_change_poll = None
+        self._last_heat_on_time = None
+        self._last_cool_on_time = None
+        self._last_heat_on_temp = None
+        self._last_cool_on_temp = None
 
     def __del__(self):
         """
@@ -179,6 +176,7 @@ class ManagerThread():
         quarter second). Ensurses that relays are disabled on shutdown.
         """
         self.log.debug("started")
+        self._current_poll += 1
         while not self._stop:
             t_start = time.time()
             try:
@@ -235,12 +233,49 @@ class ManagerThread():
         """
         if self.active_heating:
             try:
-                self.active_heating_relay.on()
+                if not self.active_heating_relay.is_running():
+                    self._last_heat_on_time = time.time()
+                    self._last_heat_on_temp = self.beer.avg_temp()
+                    self.active_heating_relay.on()
+                elif (self._current_poll - self._last_heat_duty_change_poll) \
+                    > self._npolls_wait_duty_change:
+                    delta_t = self.beer.avg_temp() - self._last_heat_on_temp
+                    efficacy_now = delta_t / (self._current_poll - \
+                        self._last_heat_duty_change_poll)
+                    if efficacy_now < self._target_efficacy:
+                        self._increase_heating_efficacy()
+                    elif efficacy_now > self._target_efficacy:
+                        self._decrease_heating_efficacy()
             except AttributeError:
                 self.log.warning(
                     "heating required but no active heating relay set")
         else:
             self.log.warning("active heating required but disabled")
+
+    def _decrease_heating_efficacy(self):
+        "Decreases the duty cycle of heating"
+        self._heat_duty_cycle -= self._heat_duty_cycle_increment
+        self._active_heating_relay.alter_duty_cycle(
+            self._heat_duty_cycle)
+        self.log.info(
+            "heating duty cycle decreased to %0.2f",
+            self._heat_duty_cycle)
+        self._last_heat_duty_change_poll = self._current_poll
+
+    def _increase_heating_efficacy(self):
+        "Increases the duty cycle of heating"
+        if self._heat_duty_cycle >= 100:
+            self.log.warning(
+                "heating is insufficient for current ambient")
+        else:
+            self._heat_duty_cycle += self._heat_duty_cycle_increment
+            self._active_heating_relay.alter_duty_cycle(
+                self._heat_duty_cycle)
+            self.log.info(
+                "heating duty cycle increased to %0.2f",
+                self._heat_duty_cycle)
+            self._last_heat_duty_change_poll = \
+                self._current_poll
 
     def _stop_heating(self):
         """
@@ -260,16 +295,53 @@ class ManagerThread():
         """
         if self.active_cooling:
             try:
-                self.active_cooling_relay.on()
+                if not self.active_cooling_relay.is_running():
+                    self._last_cool_on_time = time.time()
+                    self._last_cool_on_temp = self.beer.avg_temp()
+                    self.active_cooling_relay.on()
+                elif (self._current_poll - self._last_cool_duty_change_poll) \
+                    > self._npolls_wait_duty_change:
+                    delta_t = self.beer.avg_temp() - self._last_cool_on_temp
+                    efficacy_now = delta_t / (self._current_poll - \
+                        self._last_cool_duty_change_poll)
+                    if efficacy_now < (-1 * self._target_efficacy):
+                        self._decrease_cooling_efficacy()
+                    elif efficacy_now > (-1 * self._target_efficacy):
+                        self._increase_cooling_efficacy()
             except AttributeError:
                 self.log.warning(
                     "cooling required but no active cooling relay set")
         else:
             self.log.warning("active cooling required but disabled")
 
+    def _decrease_cooling_efficacy(self):
+        "Decreases the duty cycle of cooling"
+        self._cool_duty_cycle -= self._cool_duty_cycle_increment
+        self._active_cooling_relay.alter_duty_cycle(
+            self._cool_duty_cycle)
+        self.log.info(
+            "cooling duty cycle decreased to %0.2f",
+            self._cool_duty_cycle)
+        self._last_cool_duty_change_poll = self._current_poll
+
+    def _increase_cooling_efficacy(self):
+        "Increases the duty cycle of cooling"
+        if self._cool_duty_cycle >= 100:
+            self.log.warning(
+                "cooling is insufficient for current ambient")
+        else:
+            self._cool_duty_cycle += self._cool_duty_cycle_increment
+            self._active_cooling_relay.alter_duty_cycle(
+                self._cool_duty_cycle)
+            self.log.info(
+                "cooling duty cycle increased to %0.2f",
+                self._cool_duty_cycle)
+            self._last_cool_duty_change_poll = \
+                self._current_poll
+
     def _stop_cooling(self):
         """
-        Call this method whenever cooling is started or when heat is no longer
+        Call this method whenever cooling is started or when cool is no longer
         required.
         """
         try:

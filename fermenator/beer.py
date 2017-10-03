@@ -144,6 +144,10 @@ class SetPointBeer(AbstractBeer):
             [None]*self.moving_average_size, self.moving_average_size)
         self._moving_avg_temp = None
 
+    def avg_temp(self):
+        "Returns the locally cached version of the moving average temperature"
+        return self._moving_avg_temp
+
     def _get_temperature(self, retries=3):
         "Get the current temperature of the beer, log error if old"
         for _ in range(0, 3):

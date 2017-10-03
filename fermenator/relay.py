@@ -155,6 +155,10 @@ class Relay(object):
         if the current relay state is off. Only allows changing the percentage
         of on time not the cycle duration, which is a much more static property.
         """
+        if duty_cycle_pct > 1.0:
+            duty_cycle_pct = 1.0
+        elif duty_cycle_pct < 0.0:
+            duty_cycle_pct = 0.0
         relay_was_on = self._duty_cycle_thread
         self.off()
         self._duty_cycle = duty_cycle_pct
