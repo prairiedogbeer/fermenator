@@ -246,9 +246,9 @@ class ManagerThread():
                         self._increase_heating_efficacy()
                     elif efficacy_now > self._target_efficacy:
                         self._decrease_heating_efficacy()
-            except AttributeError:
+            except AttributeError as err:
                 self.log.warning(
-                    "heating required but no active heating relay set")
+                    "heating required but no active heating relay set %s", err)
         else:
             self.log.warning("active heating required but disabled")
 
