@@ -191,7 +191,7 @@ class Relay(object):
                 remaining_time)
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
-        else:
+        elif self._duty_cycle:
             self.log.info(
                 "duty cycle thread starting at %0.2f", self._duty_cycle)
         on_time = None
