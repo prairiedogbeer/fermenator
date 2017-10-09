@@ -147,6 +147,11 @@ class Relay(object):
             return True
         return False
 
+    @property
+    def duty_cycle(self):
+        "Returns the current duty cycle of the relay"
+        return self._duty_cycle
+
     def alter_duty_cycle(self, duty_cycle_pct):
         """
         Change the duty cycle of an already instantiated relay. Handles the

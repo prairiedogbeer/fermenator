@@ -276,8 +276,7 @@ class ManagerThread():
             self.log.info(
                 "heating duty cycle increased to %0.2f",
                 self._heat_duty_cycle)
-            self._last_heat_duty_change_poll = \
-                self._current_poll
+            self._last_heat_duty_change_poll = self._current_poll
 
     def _stop_heating(self):
         """
@@ -300,7 +299,11 @@ class ManagerThread():
                 if not self.active_cooling_relay.is_running():
                     self._last_cool_on_temp = self.beer.avg_temp()
                     self._last_cool_duty_change_poll = self._current_poll
+                    self._cool_duty_cycle = self.active_cooling_relay.duty_cycle
                     self.active_cooling_relay.on()
+                elif self._cool_duty_cycle is None:
+                    # nothing to do if no duty cycle is set up on the relay
+                    return
                 elif (self._current_poll - self._last_cool_duty_change_poll) \
                     > self._npolls_wait_duty_change:
                     delta_t = self.beer.avg_temp() - self._last_cool_on_temp
@@ -342,8 +345,7 @@ class ManagerThread():
             self.log.info(
                 "cooling duty cycle increased to %0.2f",
                 self._cool_duty_cycle)
-            self._last_cool_duty_change_poll = \
-                self._current_poll
+            self._last_cool_duty_change_poll = self._current_poll
 
     def _stop_cooling(self):
         """
