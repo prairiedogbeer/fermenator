@@ -250,7 +250,8 @@ class ManagerThread():
             return
         if not self.active_heating_relay.is_running():
             self.active_heating_relay.on()
-        else:
+            self._heat_duty_cycle = self.active_heating_relay.duty_cycle
+        elif self._heat_duty_cycle:
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
@@ -312,7 +313,8 @@ class ManagerThread():
             return
         if not self.active_cooling_relay.is_running():
             self.active_cooling_relay.on()
-        else:
+            self._cool_duty_cycle = self.active_cooling_relay.duty_cycle
+        elif self._cool_duty_cycle:
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
@@ -340,7 +342,7 @@ class ManagerThread():
         "Increases the duty cycle of cooling"
         self._last_temp_at_duty_change = self.beer.avg_temp()
         self._last_duty_change_poll = self._current_poll
-        if self._cool_duty_cycle >= 100:
+        if self._cool_duty_cycle and self._cool_duty_cycle >= 100:
             self.log.warning(
                 "cooling is insufficient for current ambient")
             return
