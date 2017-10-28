@@ -171,8 +171,8 @@ class ManagerThread():
         interrupted by self._stop being set True (which is checked once per
         quarter second). Ensurses that relays are disabled on shutdown.
         """
-        self.log.debug("started")
         self._current_poll += 1
+        self.log.debug("started poll %d", self._current_poll)
         while not self._stop:
             t_start = time.time()
             try:
@@ -225,16 +225,22 @@ class ManagerThread():
         "Returns true if we haven't completed enough polls for reliable info"
         if (self._current_poll - self._last_duty_change_poll) \
             > self._npolls_wait_duty_change:
-            return True
-        return False
+            return False
+        return True
 
     def _temp_change_per_poll(self):
         """
         Returns the change in beer temp per poll, scoped since the last time
         cooling or heating cycles were updated
         """
-        return (self.beer.avg_temp() - self._last_temp_at_duty_change) / \
-            (self._current_poll - self._last_duty_change_poll)
+        try:
+            return (self.beer.avg_temp() - self._last_temp_at_duty_change) / \
+                (self._current_poll - self._last_duty_change_poll)
+        except ZeroDivisionError:
+            self.log.error(
+                "division by zero when calculating temp change per poll. "
+                "curr_poll: %d, last_duty_change_poll: %d",
+                self._current_poll, self._last_duty_change_poll)
 
     def _start_heating(self):
         """
@@ -253,6 +259,8 @@ class ManagerThread():
             self._heat_duty_cycle = self.active_heating_relay.duty_cycle
             self._last_temp_at_duty_change = self.beer.avg_temp()
             self._last_duty_change_poll = self._current_poll
+            self.log.debug(
+                "starting heating cycle at poll %d", self._current_poll)
         elif self._heat_duty_cycle:
             if self._is_collecting_temp_info():
                 return
