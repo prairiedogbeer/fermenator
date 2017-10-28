@@ -65,7 +65,7 @@ class ManagerThread():
         self._thread = threading.Thread(target=self.run)
         self._heat_duty_cycle = None
         self._cool_duty_cycle = None
-        self._last_duty_change_poll = 0
+        self._last_duty_change_poll = self._current_poll
         self._last_temp_at_duty_change = 0
 
     def __del__(self):
@@ -251,6 +251,8 @@ class ManagerThread():
         if not self.active_heating_relay.is_running():
             self.active_heating_relay.on()
             self._heat_duty_cycle = self.active_heating_relay.duty_cycle
+            self._last_temp_at_duty_change = self.beer.avg_temp()
+            self._last_duty_change_poll = self._current_poll
         elif self._heat_duty_cycle:
             if self._is_collecting_temp_info():
                 return
@@ -314,6 +316,8 @@ class ManagerThread():
         if not self.active_cooling_relay.is_running():
             self.active_cooling_relay.on()
             self._cool_duty_cycle = self.active_cooling_relay.duty_cycle
+            self._last_temp_at_duty_change = self.beer.avg_temp()
+            self._last_duty_change_poll = self._current_poll
         elif self._cool_duty_cycle:
             if self._is_collecting_temp_info():
                 return
