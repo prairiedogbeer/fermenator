@@ -259,7 +259,7 @@ class ManagerThread():
             self._heat_duty_cycle = self.active_heating_relay.duty_cycle
             self._last_temp_at_duty_change = self.beer.avg_temp()
             self._last_duty_change_poll = self._current_poll
-            self.log.debug(
+            self.log.info(
                 "starting heating cycle at poll %d", self._current_poll)
         elif self._heat_duty_cycle:
             if self._is_collecting_temp_info():
@@ -270,7 +270,7 @@ class ManagerThread():
             elif efficacy_now > self._target_efficacy:
                 self._decrease_heating_efficacy()
             else:
-                self.log.debug(
+                self.log.info(
                     "target heating efficacy duty cycle (%0.2f) reached",
                     self._heat_duty_cycle
                     )
@@ -335,7 +335,7 @@ class ManagerThread():
             elif efficacy_now > self._target_efficacy:
                 self._decrease_cooling_efficacy()
             else:
-                self.log.debug(
+                self.log.info(
                     "target cooling efficacy duty cycle (%0.2f) reached",
                     self._cool_duty_cycle
                     )
