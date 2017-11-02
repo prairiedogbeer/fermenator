@@ -171,10 +171,10 @@ class ManagerThread():
         interrupted by self._stop being set True (which is checked once per
         quarter second). Ensurses that relays are disabled on shutdown.
         """
-        self._current_poll += 1
         self.log.debug("started poll %d", self._current_poll)
         while not self._stop:
             t_start = time.time()
+            self._current_poll += 1
             try:
                 if self.beer.requires_heating(self.is_heating(), self.is_cooling()):
                     self._stop_cooling()
