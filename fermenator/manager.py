@@ -334,10 +334,10 @@ class ManagerThread():
             efficacy_now = self._temp_change_per_poll()
             self.log.info(
                 "current cooling efficacy: %0.2f per poll", efficacy_now)
-            if efficacy_now < self._target_efficacy:
-                self._increase_cooling_efficacy()
-            elif efficacy_now > self._target_efficacy:
+            if efficacy_now < -1 * self._target_efficacy:
                 self._decrease_cooling_efficacy()
+            elif efficacy_now > -1 * self._target_efficacy:
+                self._increase_cooling_efficacy()
             else:
                 self.log.info(
                     "target cooling efficacy duty cycle (%0.2f) reached",
