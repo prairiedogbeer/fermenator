@@ -265,6 +265,8 @@ class ManagerThread():
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
+            self.log.info(
+                "current heating efficacy: %0.2f per poll", efficacy_now)
             if efficacy_now < self._target_efficacy:
                 self._increase_heating_efficacy()
             elif efficacy_now > self._target_efficacy:
@@ -330,6 +332,8 @@ class ManagerThread():
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
+            self.log.info(
+                "current cooling efficacy: %0.2f per poll", efficacy_now)
             if efficacy_now < self._target_efficacy:
                 self._increase_cooling_efficacy()
             elif efficacy_now > self._target_efficacy:
