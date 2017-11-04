@@ -47,6 +47,8 @@ class ManagerThread():
         self._active_heating = kwargs.pop('active_heating', False)
         self._active_cooling_relay = kwargs.pop('active_cooling_relay', None)
         self._active_heating_relay = kwargs.pop('active_heating_relay', None)
+        self._modulate_heating = kwargs.pop('modulate_heating', False)
+        self._modulate_cooling = kwargs.pop('modulate_cooling', False)
         self._polling_frequency = float(kwargs.pop('polling_frequency', 60))
         self._target_efficacy = float(
             kwargs.pop('target_efficacy', 1 / 60.0))
@@ -261,7 +263,7 @@ class ManagerThread():
             self._last_duty_change_poll = self._current_poll
             self.log.info(
                 "starting heating cycle at poll %d", self._current_poll)
-        elif self._heat_duty_cycle:
+        elif self._modulate_heating and self._heat_duty_cycle:
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
@@ -328,7 +330,7 @@ class ManagerThread():
             self._cool_duty_cycle = self.active_cooling_relay.duty_cycle
             self._last_temp_at_duty_change = self.beer.avg_temp()
             self._last_duty_change_poll = self._current_poll
-        elif self._cool_duty_cycle:
+        elif self._modulate_cooling and self._cool_duty_cycle:
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
