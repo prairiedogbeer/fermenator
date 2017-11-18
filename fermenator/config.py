@@ -128,6 +128,10 @@ class FermenatorConfig():
             self.refresh_interval = float(kwargs['refresh_interval'])
         else:
             self.refresh_interval = 300.0
+        # use this variable to show that a log handler has been configured
+        # so that subsequent assemblies do not attach the handler again and
+        # duplicate log messages.
+        self._slack_log_handler = None
 
     def assemble(self):
         """
@@ -576,6 +580,9 @@ class FirebaseConfig(FermenatorConfig):
         Retrieve log level configuration from the datastore for Slack logging,
         and set it up locally
         """
+        if self._slack_log_handler is None:
+            self._slack_log_handler = SlackLogHandler()
+            logging.getLogger('fermenator').addHandler(self._slack_log_handler)
         try:
             level = self._fb.get(
                 self.PREFIX + ('slack_log_level',)).upper()
@@ -586,15 +593,13 @@ class FirebaseConfig(FermenatorConfig):
             log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
         except DataFetchError:
             log_format = '%(levelname)s: %(message)s'
-        slack_handler = SlackLogHandler()
-        slack_handler.setLevel(level)
-        slack_handler.setFormatter(logging.Formatter(fmt=log_format))
+        self._slack_log_handler.setLevel(level)
+        self._slack_log_handler.setFormatter(logging.Formatter(fmt=log_format))
         try:
-            slack_handler.slack_channel = self._fb.get(
+            self._slack_log_handler.slack_channel = self._fb.get(
                 self.PREFIX + ('slack_log_channel',))
         except DataFetchError:
             pass
-        logging.getLogger('fermenator').addHandler(slack_handler)
 
     def get_relay_config(self):
         """
