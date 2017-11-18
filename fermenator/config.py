@@ -133,6 +133,7 @@ class FermenatorConfig():
         Reads all the configuration and assembles objects in the correct order.
         """
         self.get_config_log_level()
+        self.setup_slack_logging()
         self.log.debug("assembling")
         self.get_datasources()
         self.get_relays()
