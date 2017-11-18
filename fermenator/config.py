@@ -139,7 +139,7 @@ class FermenatorConfig():
         """
         self.get_config_log_level()
         self.setup_slack_logging()
-        self.log.debug("assembling")
+        self.log.warning("assembling")
         self.get_datasources()
         self.get_relays()
         self.get_beers()
@@ -150,7 +150,7 @@ class FermenatorConfig():
         Shuts down any running manager threads and destroys objects in the
         reverse order of creation.
         """
-        self.log.debug("disassembling")
+        self.log.warning("disassembling")
         for name, obj in self._managers.items():
             if obj.is_alive():
                 obj.stop()
