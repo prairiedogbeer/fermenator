@@ -562,6 +562,27 @@ class FirebaseConfig(FermenatorConfig):
         except AttributeError:
             self.log.error("invalid log level %s specified", level.upper())
 
+    def setup_slack_logging(self):
+        """
+        Retrieve log level configuration from the datastore for Slack logging,
+        and set it up locally
+        """
+        try:
+            level = getattr(logging, self._fb.get(self.PREFIX + ('slack_log_level',)).upper())
+        except AttributeError:
+            level = logging.WARNING
+        log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
+        if log_format is None:
+            log_format = '%(levelname)s: %(message)s'
+        formatter = logging.Formatter(fmt=log_format)
+        log_channel = self._fb.get(self.PREFIX + ('slack_log_channel',))
+        import fermenator.log
+        slack_handler = fermenator.log.SlackLogHandler()
+        slack_handler.slack_channel = log_channel
+        slack_handler.setLevel(level)
+        slack_handler.setFormatter(formatter)
+        logging.getLogger('fermenator').addHandler(slack_handler)
+
     def get_relay_config(self):
         """
         Retrieve relay configuration from the datastore

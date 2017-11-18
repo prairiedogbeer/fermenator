@@ -7,3 +7,4 @@ gpiozero
 pyrebase
 pyyaml
 Adafruit_GPIO
+slackclient
