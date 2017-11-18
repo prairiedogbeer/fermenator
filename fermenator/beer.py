@@ -162,9 +162,8 @@ class SetPointBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_temp(data['temperature'])
                 return data['temperature']
-            except (DataSourceError, StaleDataError) as err:
-                self.log.warning(
-                    "exception reading/parsing temp from datastore: %s", err)
+            except DataSourceError as err:
+                self.log.warning(err)
         raise DataFetchError(
             "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
@@ -332,9 +331,9 @@ class LinearBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_temp(data['temperature'])
                 return data['temperature']
-            except (DataSourceError, StaleDataError) as err:
-                self.log.warning(
-                    "exception reading/parsing temp from datastore: %s", err)
+            except DataSourceError as err:
+                # Allow this error to pass so that we can retry
+                self.log.warning(err)
         raise DataFetchError(
             "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
@@ -366,9 +365,8 @@ class LinearBeer(AbstractBeer):
                 self.check_timestamp(data['timestamp'])
                 self._add_grav(data['gravity'])
                 return data['gravity']
-            except (DataSourceError, StaleDataError) as err:
-                self.log.warning(
-                    "exception reading/parsing gravity from datastore: %s", err)
+            except DataSourceError as err:
+                self.log.warning(err)
         raise DataFetchError(
             "unable to fetch gravity from read_datasource after {} tries".format(
                 retries))
