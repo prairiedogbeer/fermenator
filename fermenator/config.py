@@ -19,6 +19,7 @@ from .datasource.carbon import CarbonDataSource
 from .relay import Relay, GPIORelay, MCP23017Relay
 from .beer import AbstractBeer, SetPointBeer, LinearBeer, DampenedBeer, NoOpBeer
 from .manager import ManagerThread
+import fermenator.log
 from .exception import (
     ConfigurationError, ClassNotFoundError, ConfigNotFoundError,
     DataFetchError)
@@ -570,18 +571,21 @@ class FirebaseConfig(FermenatorConfig):
         """
         try:
             level = getattr(logging, self._fb.get(self.PREFIX + ('slack_log_level',)).upper())
-        except AttributeError:
+        except AttributeError, DataFetchError:
             level = logging.WARNING
-        log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
-        if log_format is None:
+        try:
+            log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
+        except DataFetchError:
             log_format = '%(levelname)s: %(message)s'
         formatter = logging.Formatter(fmt=log_format)
-        log_channel = self._fb.get(self.PREFIX + ('slack_log_channel',))
-        import fermenator.log
         slack_handler = fermenator.log.SlackLogHandler()
-        slack_handler.slack_channel = log_channel
         slack_handler.setLevel(level)
         slack_handler.setFormatter(formatter)
+        try:
+            slack_handler.slack_channel = self._fb.get(
+                self.PREFIX + ('slack_log_channel',))
+        except DataFetchError:
+            pass
         logging.getLogger('fermenator').addHandler(slack_handler)
 
     def get_relay_config(self):
