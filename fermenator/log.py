@@ -60,7 +60,8 @@ class SlackLogHandler(logging.Handler):
                     channel=self.slack_channel,
                     #TODO: remove
                     user="U0R3Q7B8R", # gerad
-                    attachments=[msg]
+                    attachments=[msg],
+                    as_user=True
                 )
         except Exception:
             self.handleError(record)
