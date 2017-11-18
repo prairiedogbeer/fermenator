@@ -577,19 +577,18 @@ class FirebaseConfig(FermenatorConfig):
         and set it up locally
         """
         try:
-            level = getattr(
-                logging,
-                self._fb.get(self.PREFIX + ('slack_log_level',)).upper())
+            level = self._fb.get(
+                self.PREFIX + ('slack_log_level',)).upper()
         except (AttributeError, DataFetchError):
-            level = logging.WARNING
+            level = "WARNING"
+        self.log.debug("using slack log level %s", level)
         try:
             log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
         except DataFetchError:
             log_format = '%(levelname)s: %(message)s'
-        formatter = logging.Formatter(fmt=log_format)
         slack_handler = SlackLogHandler()
         slack_handler.setLevel(level)
-        slack_handler.setFormatter(formatter)
+        slack_handler.setFormatter(logging.Formatter(fmt=log_format))
         try:
             slack_handler.slack_channel = self._fb.get(
                 self.PREFIX + ('slack_log_channel',))
@@ -648,5 +647,5 @@ class FirebaseConfig(FermenatorConfig):
 
     def assemble(self):
         self._version = self.upstream_version()
-        self.log.info("assembling with version %s", self._version)
+        self.log.warning("assembling with version %s", self._version)
         super(FirebaseConfig, self).assemble()
