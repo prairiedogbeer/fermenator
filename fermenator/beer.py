@@ -389,12 +389,8 @@ class LinearBeer(AbstractBeer):
             self._moving_avg_grav = numerator / float(denom)
 
     def requires_heating(self, heating_state, cooling_state):
-        try:
-            gravity = self._get_gravity()
-            current_temp = self._get_temperature()
-        except StaleDataError as err:
-            self.log.error(str(err), exc_info=0)
-            return False
+        gravity = self._get_gravity()
+        current_temp = self._get_temperature()
         progress = self.calc_progress(self._moving_avg_grav)
         target = self.current_target_temperature(progress)
         set_point = target - self.tolerance
@@ -411,12 +407,8 @@ class LinearBeer(AbstractBeer):
         return False
 
     def requires_cooling(self, heating_state, cooling_state):
-        try:
-            gravity = self._get_gravity()
-            current_temp = self._get_temperature()
-        except StaleDataError as err:
-            self.log.error(str(err), exc_info=0)
-            return False
+        gravity = self._get_gravity()
+        current_temp = self._get_temperature()
         progress = self.calc_progress(self._moving_avg_grav)
         target = self.current_target_temperature(progress)
         set_point = target + self.tolerance
