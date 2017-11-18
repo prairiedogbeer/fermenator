@@ -654,7 +654,7 @@ class FirebaseConfig(FermenatorConfig):
         self._version = self.upstream_version()
         self.get_config_log_level()
         self.setup_slack_logging()
-        self.log.warning("assembling with version %s", self._version))
+        self.log.warning("assembling with version %s", self._version)
         self.get_datasources()
         self.get_relays()
         self.get_beers()
