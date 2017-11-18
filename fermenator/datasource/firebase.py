@@ -44,7 +44,7 @@ class FirebaseDataSource(DataSource):
         """
         with FirebaseDataSource.__lock:
             if not self._fb_hndl:
-                self.log.info("getting new firebase handle")
+                self.log.debug("getting new firebase handle")
                 try:
                     self._fb_hndl = pyrebase.initialize_app(
                         self._config).database()

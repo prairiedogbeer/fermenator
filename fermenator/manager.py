@@ -55,7 +55,7 @@ class ManagerThread():
         try:
             self.write_datasources = kwargs['write_datasources']
         except KeyError:
-            self.log.info("no write datasources defined, state logging disabled")
+            self.log.warning("no write datasources defined, state logging disabled")
             self.write_datasources = dict()
         self.state_path_prefix = tuple(
             kwargs.pop('state_path_prefix', "fermenator.state").split('.'))
@@ -261,7 +261,7 @@ class ManagerThread():
             self._heat_duty_cycle = self.active_heating_relay.duty_cycle
             self._last_temp_at_duty_change = self.beer.avg_temp()
             self._last_duty_change_poll = self._current_poll
-            self.log.info(
+            self.log.debug(
                 "starting heating cycle at poll %d", self._current_poll)
         elif self._modulate_heating and self._heat_duty_cycle:
             if self._is_collecting_temp_info():
@@ -285,7 +285,7 @@ class ManagerThread():
         self._last_duty_change_poll = self._current_poll
         self._heat_duty_cycle -= self._heat_duty_cycle_increment
         self._active_heating_relay.alter_duty_cycle(self._heat_duty_cycle)
-        self.log.info(
+        self.log.debug(
             "heating duty cycle decreased to %0.2f",
             self._heat_duty_cycle)
 
@@ -299,7 +299,7 @@ class ManagerThread():
             return
         self._heat_duty_cycle += self._heat_duty_cycle_increment
         self._active_heating_relay.alter_duty_cycle(self._heat_duty_cycle)
-        self.log.info(
+        self.log.debug(
             "heating duty cycle increased to %0.2f",
             self._heat_duty_cycle)
 
@@ -334,14 +334,14 @@ class ManagerThread():
             if self._is_collecting_temp_info():
                 return
             efficacy_now = self._temp_change_per_poll()
-            self.log.info(
+            self.log.debug(
                 "current cooling efficacy: %0.2f per poll", efficacy_now)
             if efficacy_now < -1 * self._target_efficacy:
                 self._decrease_cooling_efficacy()
             elif efficacy_now > -1 * self._target_efficacy:
                 self._increase_cooling_efficacy()
             else:
-                self.log.info(
+                self.log.debug(
                     "target cooling efficacy duty cycle (%0.2f) reached",
                     self._cool_duty_cycle
                     )
@@ -352,7 +352,7 @@ class ManagerThread():
         self._last_duty_change_poll = self._current_poll
         self._cool_duty_cycle -= self._cool_duty_cycle_increment
         self._active_cooling_relay.alter_duty_cycle(self._cool_duty_cycle)
-        self.log.info(
+        self.log.debug(
             "cooling duty cycle decreased to %0.2f",
             self._cool_duty_cycle)
 
@@ -366,7 +366,7 @@ class ManagerThread():
             return
         self._cool_duty_cycle += self._cool_duty_cycle_increment
         self._active_cooling_relay.alter_duty_cycle(self._cool_duty_cycle)
-        self.log.info(
+        self.log.debug(
             "cooling duty cycle increased to %0.2f",
             self._cool_duty_cycle)
 

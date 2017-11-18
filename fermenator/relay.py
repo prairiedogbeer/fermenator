@@ -186,13 +186,13 @@ class Relay(object):
         """
         remaining_time = self._last_off_time + self.minimum_off_time - time.time()
         if remaining_time > 0:
-            self.log.info(
+            self.log.debug(
                 "waiting %ds for minimum_off_time to expire before turning on",
                 remaining_time)
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
         elif self._duty_cycle:
-            self.log.info(
+            self.log.debug(
                 "duty cycle thread starting at %0.2f", self._duty_cycle)
         on_time = None
         off_time = None
