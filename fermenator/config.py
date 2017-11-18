@@ -12,6 +12,7 @@ import os.path
 import time
 from yaml import load as load_yaml
 
+from .log import SlackLogHandler
 from .datasource.gsheet import GoogleSheet, BrewometerGoogleSheet
 from .datasource.firebase import (
     FirebaseDataSource, BrewConsoleFirebaseDS)
@@ -19,7 +20,6 @@ from .datasource.carbon import CarbonDataSource
 from .relay import Relay, GPIORelay, MCP23017Relay
 from .beer import AbstractBeer, SetPointBeer, LinearBeer, DampenedBeer, NoOpBeer
 from .manager import ManagerThread
-import fermenator.log
 from .exception import (
     ConfigurationError, ClassNotFoundError, ConfigNotFoundError,
     DataFetchError)
@@ -198,6 +198,13 @@ class FermenatorConfig():
         """
         raise NotImplementedError(
             "is_config_changed needs to be implemented in subclass")
+
+    def setup_slack_logging(self):
+        """
+        Reads various settings from the config datasource and sets up slack
+        logging. Not implemented in this class.
+        """
+        pass
 
     def get_config_log_level(self):
         """
@@ -570,15 +577,17 @@ class FirebaseConfig(FermenatorConfig):
         and set it up locally
         """
         try:
-            level = getattr(logging, self._fb.get(self.PREFIX + ('slack_log_level',)).upper())
-        except AttributeError, DataFetchError:
+            level = getattr(
+                logging,
+                self._fb.get(self.PREFIX + ('slack_log_level',)).upper())
+        except (AttributeError, DataFetchError):
             level = logging.WARNING
         try:
             log_format = self._fb.get(self.PREFIX + ('slack_log_format',))
         except DataFetchError:
             log_format = '%(levelname)s: %(message)s'
         formatter = logging.Formatter(fmt=log_format)
-        slack_handler = fermenator.log.SlackLogHandler()
+        slack_handler = SlackLogHandler()
         slack_handler.setLevel(level)
         slack_handler.setFormatter(formatter)
         try:
