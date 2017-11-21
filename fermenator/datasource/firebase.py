@@ -4,6 +4,7 @@ configuration or beer data.
 """
 import threading
 import ssl
+import urllib3.exceptions
 import pyrebase
 import requests.exceptions
 from fermenator.conversions import (
@@ -48,7 +49,8 @@ class FirebaseDataSource(DataSource):
                 try:
                     self._fb_hndl = pyrebase.initialize_app(
                         self._config).database()
-                except (requests.exceptions.HTTPError, ssl.SSLError) as err:
+                except (requests.exceptions.HTTPError, ssl.SSLError,
+                        urllib3.exceptions.SSLError) as err:
                     self._fb_hndl = None
                     raise DSConnectionError(
                         "connect to firebase failed: {}".format(err))
@@ -65,7 +67,8 @@ class FirebaseDataSource(DataSource):
                 if res is None:
                     raise DataFetchError('no data found at key {}'.format(keypath))
                 return res
-            except (requests.exceptions.HTTPError, ssl.SSLError) as err:
+            except (requests.exceptions.HTTPError, ssl.SSLError,
+                    urllib3.exceptions.SSLError) as err:
                 self._fb_hndl = None
                 raise DataFetchError("read from firebase failed: {}".format(err))
 
@@ -80,7 +83,8 @@ class FirebaseDataSource(DataSource):
                 for subkey in key:
                     obj = obj.child(subkey)
                 obj.set(value)
-            except (requests.exceptions.HTTPError, ssl.SSLError) as err:
+            except (requests.exceptions.HTTPError, ssl.SSLError,
+                    urllib3.exceptions.SSLError) as err:
                 self._fb_hndl = None
                 raise DataWriteError("write to firebase failed: {}".format(err))
 
