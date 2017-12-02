@@ -9,6 +9,7 @@ An additonal aspect of fermenator beers is that they check the recency of their
 data, and are capable of logging errors or warnings if the data is old or looks
 unreliable.
 """
+import time
 import logging
 import datetime
 import collections
@@ -40,7 +41,7 @@ class AbstractBeer(object):
                 self.__class__.__name__,
                 self._name))
         self.data_age_warning_time = float(kwargs.pop(
-            'data_age_warning_time', 60 * 30))
+            'data_age_warning_time', 60 * 3))
         self.gravity_unit = kwargs.pop('gravity_unit', 'P')
         self.temperature_unit = kwargs.pop('temperature_unit', 'C')
 
@@ -150,7 +151,7 @@ class SetPointBeer(AbstractBeer):
 
     def _get_temperature(self, retries=3):
         "Get the current temperature of the beer, log error if old"
-        for _ in range(0, 3):
+        for _ in range(0, retries):
             try:
                 data = self.read_datasource.get_temperature(
                     self.identifier)
@@ -164,6 +165,7 @@ class SetPointBeer(AbstractBeer):
                 return data['temperature']
             except DataSourceError as err:
                 self.log.warning(err)
+            time.sleep(5.0)
         raise DataFetchError(
             "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
@@ -318,7 +320,7 @@ class LinearBeer(AbstractBeer):
         """
         Get temeperature data from the read_datasource
         """
-        for _ in range(0, 3):
+        for _ in range(0, retries):
             try:
                 data = self.read_datasource.get_temperature(self.identifier)
                 if (data['temperature'] > self.max_temp_value) or \
@@ -334,6 +336,7 @@ class LinearBeer(AbstractBeer):
             except DataSourceError as err:
                 # Allow this error to pass so that we can retry
                 self.log.warning(err)
+            time.sleep(5.0)
         raise DataFetchError(
             "unable to fetch temperature from read_datasource after {} tries".format(
                 retries))
@@ -359,7 +362,7 @@ class LinearBeer(AbstractBeer):
         """
         Get gravity data from the read_datasource
         """
-        for _ in range(0, 3):
+        for _ in range(0, retries):
             try:
                 data = self.read_datasource.get_gravity(self.identifier)
                 self.check_timestamp(data['timestamp'])
@@ -367,6 +370,7 @@ class LinearBeer(AbstractBeer):
                 return data['gravity']
             except DataSourceError as err:
                 self.log.warning(err)
+            time.sleep(5.0)
         raise DataFetchError(
             "unable to fetch gravity from read_datasource after {} tries".format(
                 retries))
