@@ -56,10 +56,8 @@ class SlackLogHandler(logging.Handler):
                     'footer': record.name
                 }
                 self._slack_client.api_call(
-                    "chat.postEphemeral",
+                    "chat.postMessage",
                     channel=self.slack_channel,
-                    #TODO: remove
-                    user="U0R3Q7B8R", # gerad
                     attachments=[msg],
                     as_user=True
                 )
