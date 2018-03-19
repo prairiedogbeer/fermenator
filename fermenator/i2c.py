@@ -2,6 +2,7 @@
 Represents objects that we interact with over the i2c bus, including wrapping
 objects for thread safety, etc.
 """
+import logging
 import threading
 import Adafruit_GPIO
 import Adafruit_GPIO.MCP230xx
@@ -20,6 +21,7 @@ class MCP23017():
         """
         Takes the exact same arguments as :class:`Adafruit_GPIO.MCP230xx.MCP23017`.
         """
+        self.logger = logging.getLogger('fermenator.i2c.MCP23017')
         with MCP23017.__lock:
             if MCP23017.__instance is None:
                 MCP23017.__instance = Adafruit_GPIO.MCP230xx.MCP23017(
@@ -36,6 +38,7 @@ class MCP23017():
         to work correctly
         """
         super(MCP23017, self).write_gpio(*args, **kwargs)
+        self.logger.debug("about to write iodir")
         self.write_iodir()
 
     def __getattr__(self, name):
