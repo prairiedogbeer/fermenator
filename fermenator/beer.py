@@ -234,6 +234,7 @@ class SetPointBeer(AbstractBeer):
                 temp, self._moving_avg_temp, self.set_point, set_point,
                 self.tolerance)
             return True
+        return False
 
 class LinearBeer(AbstractBeer):
     """
