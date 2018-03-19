@@ -59,6 +59,7 @@ class ManagerThread():
             self.write_datasources = dict()
         self.state_path_prefix = tuple(
             kwargs.pop('state_path_prefix', "fermenator.state").split('.'))
+        self.stale_data = False
         self._npolls_wait_duty_change = 5
         self._heat_duty_cycle_increment = 0.05
         self._cool_duty_cycle_increment = 0.01
@@ -188,10 +189,12 @@ class ManagerThread():
                     self.log.info("at set point")
                     self._stop_heating()
                     self._stop_cooling()
+                self.stale_data = False
             except FermenatorError as err:
                 self.log.error(
                     "TEMPERATURE MANAGEMENT DISABLED: %s",
                     str(err), exc_info=0)
+                self.stale_data = True
                 self._stop_heating()
                 self._stop_cooling()
             self._log_state()
@@ -386,6 +389,9 @@ class ManagerThread():
             for logger in self.write_datasources:
                 logger.set(
                     self.state_path_prefix + (self.name, "heartbeat"), now)
+                if self.stale_data:
+                    logger.set(
+                        self.state_path_prefix + (self.name, "stale-data"), 1)
                 if self.is_heating():
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 1)
