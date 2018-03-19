@@ -566,12 +566,15 @@ class FirebaseConfig(FermenatorConfig):
         """
         Retrieve log level configuration from the datastore and set it locally
         """
-        level = self._fb.get(self.PREFIX + ('log_level',))
+        try:
+            level = self._fb.get(self.PREFIX + ('log_level',))
+        except (AttributeError, DataFetchError):
+            self.log.warning("no log level configured, defaulting to WARNING")
+            level = "WARNING"
         if level is None:
             return
         try:
-            logging.getLogger('fermenator').setLevel(
-                getattr(logging, level.upper()))
+            logging.getLogger('fermenator').setLevel(level.upper())
         except AttributeError:
             self.log.error("invalid log level %s specified", level.upper())
 
