@@ -391,10 +391,10 @@ class ManagerThread():
                     self.state_path_prefix + (self.name, "heartbeat"), now)
                 if self.stale_data:
                     logger.set(
-                        self.state_path_prefix + (self.name, "stale-data"), 1)
+                        self.state_path_prefix + (self.beer.name, "stale-data"), 1)
                 else:
                     logger.set(
-                        self.state_path_prefix + (self.name, "stale-data"), 0)
+                        self.state_path_prefix + (self.beer.name, "stale-data"), 0)
                 if self.is_heating():
                     logger.set(
                         self.state_path_prefix + (self.beer.name, "heating"), 1)
