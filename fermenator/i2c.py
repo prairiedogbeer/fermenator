@@ -29,6 +29,15 @@ class MCP23017():
                     MCP23017.__instance.setup(port, Adafruit_GPIO.OUT)
                 MCP23017.__instance.GPIO = 0x14
 
+    def write_gpio(self, *args, **kwargs):
+        """
+        Workaround because sometimes the state on the MCP23017 gets messed up
+        and we need to reconfigure the port output directions for everything
+        to work correctly
+        """
+        super(MCP23017, self).write_gpio(*args, **kwargs)
+        self.write_iodir()
+
     def __getattr__(self, name):
         with MCP23017.__lock:
             subattr = getattr(MCP23017.__instance, name)
