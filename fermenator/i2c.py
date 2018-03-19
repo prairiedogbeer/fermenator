@@ -27,6 +27,7 @@ class MCP23017():
                 )
                 for port in range(0, MCP23017.__instance.NUM_GPIO):
                     MCP23017.__instance.setup(port, Adafruit_GPIO.OUT)
+                MCP23017.__instance.GPIO = 0x14
 
     def __getattr__(self, name):
         with MCP23017.__lock:

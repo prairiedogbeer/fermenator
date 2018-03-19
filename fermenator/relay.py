@@ -238,7 +238,7 @@ class GPIORelay(Relay):
         if "gpio_pin" not in kwargs:
             raise ConfigurationError(
                 "No gpio_pin specified in relay configuration")
-        self._device = gpiozero.DigitalOutputDevice(
+        self._output_device = gpiozero.DigitalOutputDevice(
             pin=int(kwargs['gpio_pin']),
             active_high=kwargs['active_high'],
             initial_value=False # keep relay turned off initially
@@ -248,13 +248,13 @@ class GPIORelay(Relay):
     def _on_hook(self):
         "Actually sends the low-level `on` signal to the relay"
         super(GPIORelay, self)._on_hook()
-        self._device.on()
+        self._output_device.on()
 
     def _off_hook(self):
         "Sends the low-level signal to turn off the relay"
         super(GPIORelay, self)._off_hook()
         try:
-            self._device.off()
+            self._output_device.off()
         except AttributeError:
             pass
 
@@ -288,21 +288,21 @@ class MCP23017Relay(Relay):
             self.i2c_addr = kwargs['i2c_addr']
         except KeyError:
             self.i2c_addr = 0x20
-        self._device = fermenator.i2c.MCP23017(
+        self._output_device = fermenator.i2c.MCP23017(
             self.i2c_addr
         )
-        self._device.setup(self.mx_pin, Adafruit_GPIO.OUT)
+        self._output_device.setup(self.mx_pin, Adafruit_GPIO.OUT)
         super(MCP23017Relay, self).__init__(name, **kwargs)
 
     def _on_hook(self):
         "Actually sends the low-level `on` signal to the relay"
         super(MCP23017Relay, self)._on_hook()
-        self._device.output(self.mx_pin, self.high_signal)
+        self._output_device.output(self.mx_pin, self.high_signal)
 
     def _off_hook(self):
         "Sends the low-level signal to turn off the relay"
         super(MCP23017Relay, self)._off_hook()
         try:
-            self._device.output(self.mx_pin, not self.high_signal)
+            self._output_device.output(self.mx_pin, not self.high_signal)
         except AttributeError:
             pass
