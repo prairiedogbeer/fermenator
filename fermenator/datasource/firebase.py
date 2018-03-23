@@ -50,7 +50,8 @@ class FirebaseDataSource(DataSource):
                     self._fb_hndl = pyrebase.initialize_app(
                         self._config).database()
                 except (requests.exceptions.HTTPError, ssl.SSLError,
-                        ssl.SSLEOFError, urllib3.exceptions.SSLError) as err:
+                        ssl.SSLEOFError, urllib3.exceptions.SSLError,
+                        urllib3.exceptions.MaxRetryError) as err:
                     self._fb_hndl = None
                     raise DSConnectionError(
                         "connect to firebase failed: {}".format(err))
@@ -68,7 +69,8 @@ class FirebaseDataSource(DataSource):
                     raise DataFetchError('no data found at key {}'.format(keypath))
                 return res
             except (requests.exceptions.HTTPError, ssl.SSLError,
-                    ssl.SSLEOFError, urllib3.exceptions.SSLError) as err:
+                    ssl.SSLEOFError, urllib3.exceptions.SSLError,
+                    urllib3.exceptions.MaxRetryError) as err:
                 self._fb_hndl = None
                 raise DataFetchError("read from firebase failed: {}".format(err))
 
@@ -84,7 +86,8 @@ class FirebaseDataSource(DataSource):
                     obj = obj.child(subkey)
                 obj.set(value)
             except (requests.exceptions.HTTPError, ssl.SSLError,
-                    ssl.SSLEOFError, urllib3.exceptions.SSLError) as err:
+                    ssl.SSLEOFError, urllib3.exceptions.SSLError,
+                    urllib3.exceptions.MaxRetryError) as err:
                 self._fb_hndl = None
                 raise DataWriteError("write to firebase failed: {}".format(err))
 
