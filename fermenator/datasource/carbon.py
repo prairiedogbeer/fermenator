@@ -116,4 +116,4 @@ class CarbonDataSource(DataSource):
             self.log.error("Error while writing to carbon: %s", err.__str__())
             if err.errno == 32:
                 with CarbonDataSource.__lock:
-                    self.__socket == None
+                    self.__socket = None
