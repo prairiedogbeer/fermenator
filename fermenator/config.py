@@ -602,6 +602,7 @@ class FirebaseConfig(FermenatorConfig):
             self._slack_log_handler.slack_channel = self._fb.get(
                 self.PREFIX + ('slack_log_channel',))
         except DataFetchError:
+            self.log.warning("no slack_log_channel set")
             pass
 
     def get_relay_config(self):
