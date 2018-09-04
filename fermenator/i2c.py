@@ -24,6 +24,14 @@ class MCP23017():
         self.logger = logging.getLogger('fermenator.i2c.MCP23017')
         with MCP23017.__lock:
             if MCP23017.__instance is None:
+                try:
+                    # The default i2c interface for Adafruit is their
+                    # experimental Pure_IO module, which they freely admit is
+                    # buggy and incomplete. Use SMBus if it is available.
+                    import smbus
+                    kwargs['i2c_interface'] = smbus.SMBus
+                except ImportError:
+                    pass
                 MCP23017.__instance = Adafruit_GPIO.MCP230xx.MCP23017(
                     *args, **kwargs
                 )
