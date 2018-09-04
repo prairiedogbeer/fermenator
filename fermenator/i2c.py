@@ -4,6 +4,7 @@ objects for thread safety, etc.
 """
 import logging
 import threading
+import time
 import Adafruit_GPIO
 import Adafruit_GPIO.MCP230xx
 
@@ -24,14 +25,15 @@ class MCP23017():
         self.logger = logging.getLogger('fermenator.i2c.MCP23017')
         with MCP23017.__lock:
             if MCP23017.__instance is None:
-                try:
-                    # The default i2c interface for Adafruit is their
-                    # experimental Pure_IO module, which they freely admit is
-                    # buggy and incomplete. Use SMBus if it is available.
-                    import smbus
-                    kwargs['i2c_interface'] = smbus.SMBus
-                except ImportError:
-                    pass
+                if 'i2c_interface' not in kwargs:
+                    try:
+                        # The default i2c interface for Adafruit is their
+                        # experimental Pure_IO module, which they freely admit is
+                        # buggy and incomplete. Use SMBus if it is available.
+                        import smbus
+                        kwargs['i2c_interface'] = smbus.SMBus
+                    except ImportError:
+                        pass
                 MCP23017.__instance = Adafruit_GPIO.MCP230xx.MCP23017(
                     *args, **kwargs
                 )
@@ -45,9 +47,40 @@ class MCP23017():
         and we need to reconfigure the port output directions for everything
         to work correctly
         """
-        MCP23017.__instance.output(*args, **kwargs)
-        self.logger.debug("about to write iodir")
-        MCP23017.__instance.write_iodir()
+        self._write_output(*args, **kwargs)
+        self._write_iodir()
+
+    def _write_output(self, *args, **kwargs):
+        """
+        Sometimes sending commands over the bus too quickly causes
+        OSError I/O Exceptions. Add some delay/retry on outputs
+        """
+        last_err = None
+        for iter in range(0, 3):
+            time.sleep(0.05)
+            try:
+                MCP23017.__instance.output(*args, **kwargs)
+            except OSError as error:
+                if error.errno == 121 and iter < 3:
+                    pass
+                else:
+                    raise
+
+    def _write_iodir(self):
+        """
+        Sometimes sending commands over the bus too quickly causes
+        OSError I/O Exceptions. Add some delay/retry
+        """
+        last_err = None
+        for iter in range(0, 3):
+            time.sleep(0.05)
+            try:
+                MCP23017.__instance.write_iodir()
+            except OSError as error:
+                if error.errno == 121 and iter < 3:
+                    pass
+                else:
+                    raise
 
     def __getattr__(self, name):
         with MCP23017.__lock:
