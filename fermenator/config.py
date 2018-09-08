@@ -127,7 +127,7 @@ class FermenatorConfig():
         if 'refresh_interval' in kwargs:
             self.refresh_interval = float(kwargs['refresh_interval'])
         else:
-            self.refresh_interval = 300.0
+            self.refresh_interval = 60.0
         # use this variable to show that a log handler has been configured
         # so that subsequent assemblies do not attach the handler again and
         # duplicate log messages.
