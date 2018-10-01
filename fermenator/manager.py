@@ -174,10 +174,10 @@ class ManagerThread():
         interrupted by self._stop being set True (which is checked once per
         quarter second). Ensurses that relays are disabled on shutdown.
         """
-        self.log.debug("started poll %d", self._current_poll)
         while not self._stop:
             t_start = time.time()
             self._current_poll += 1
+            self.log.debug("started poll %d", self._current_poll)
             try:
                 if self.beer.requires_heating(self.is_heating(), self.is_cooling()):
                     self._stop_cooling()
@@ -198,7 +198,7 @@ class ManagerThread():
                 self._stop_heating()
                 self._stop_cooling()
             except Exception as err:
-                self.log.critical("Unhandled exception: {}".format(err))
+                self.log.critical("Unhandled exception:", str(err), exc_info=0)
                 pass
             self._log_state()
             while not self._stop and ((time.time() - t_start) < self.polling_frequency):
@@ -316,7 +316,8 @@ class ManagerThread():
         """
         try:
             self.active_heating_relay.off()
-        except AttributeError:
+        except AttributeError as err:
+            self.log.debug("caught AttributeError: %s", str(err))
             pass
 
     def _start_cooling(self):
