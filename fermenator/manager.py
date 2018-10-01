@@ -197,6 +197,9 @@ class ManagerThread():
                 self.stale_data = True
                 self._stop_heating()
                 self._stop_cooling()
+            except Exception as err:
+                self.log.critical("Unhandled exception: {}".format(err))
+                pass
             self._log_state()
             while not self._stop and ((time.time() - t_start) < self.polling_frequency):
                 time.sleep(0.25)
