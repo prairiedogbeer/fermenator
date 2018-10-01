@@ -128,7 +128,10 @@ class Relay(object):
         method.
         """
         if self._duty_cycle_thread:
-            return True
+            if self._duty_cycle_thread.is_alive():
+                return True
+            else:
+                self.log.error("Found duty cycle thread dead")
         return False
 
     def is_on(self):
@@ -161,22 +164,25 @@ class Relay(object):
         of on time not the cycle duration, which is a much more static property.
         """
         if duty_cycle_pct > 1.0:
-            duty_cycle_pct = 1.0
+            self._duty_cycle = None
         elif duty_cycle_pct < 0.0:
-            duty_cycle_pct = 0.0
-        relay_was_on = self._duty_cycle_thread
+            self._duty_cycle = 0.0
+        else:
+            self._duty_cycle = duty_cycle_pct
+        relay_was_running = self.is_running()
         self.off()
-        self._duty_cycle = duty_cycle_pct
-        if relay_was_on:
+        if relay_was_running:
             self.on()
 
     def _stop_duty_cycle(self):
         """
         Stops any running duty cycle threads
         """
-        if self._duty_cycle_thread:
+        try:
             self._duty_cycle_thread.stop()
-            self._duty_cycle_thread = None
+        except AttributeError:
+            pass
+        self._duty_cycle_thread = None
 
     def _run_duty_cycle(self):
         """
