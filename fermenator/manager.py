@@ -317,7 +317,6 @@ class ManagerThread():
         try:
             self.active_heating_relay.off()
         except AttributeError as err:
-            self.log.debug("caught AttributeError: %s", str(err))
             pass
 
     def _start_cooling(self):
