@@ -3,11 +3,7 @@ This file contains methods for temperature conversion and a :class:`Temperature`
 class, which should be used to wrap temperature data to make it more portable.
 """
 #: These can be used to validate units
-TEMP_UNITS = {
-    'C': 'celcius',
-    'F': 'fahrenheit',
-    'K': 'kelvin'
-}
+TEMP_UNITS = ('C', 'K', 'F')
 
 def degrees_c_to_k(val):
     "Convert degrees celcius to degrees kelvin"
@@ -40,7 +36,7 @@ class Temperature(object):
     unit the caller specifies. All temperatures are internally stored as degrees
     Kelvin.
     """
-    def __init__(self, value, unit='C'):
+    def __init__(self, value, unit):
         "Initialize"
         unit = unit[0].upper()
         if unit == 'C':
@@ -67,7 +63,7 @@ class Temperature(object):
         "Initialize a temp object from a kelvin value"
         return cls(value, unit='K')
 
-    def as_unit(self, unit='C'):
+    def as_unit(self, unit):
         "Return the temp value in the given units"
         unit = unit[0].upper()
         if unit == 'C':
@@ -89,6 +85,37 @@ class Temperature(object):
     def as_k(self):
         "Return the temperature in kelvins"
         return self._value
+
+    def __add__(self, other):
+        "Add two temp datum together"
+        return Temperature(self.as_k() + other.as_k(), 'K')
+
+    def __iadd__(self, other):
+        "Add another to this one in place"
+        self._value += other.as_k()
+        return self
+
+    def __sub__(self, other):
+        "Subtract two temps from each other"
+        return Temperature(self.as_k() - other.as_k(), 'K')
+
+    def __mul__(self, other):
+        """Multiply two temperatures together or a temperature by a normal
+        float or int"""
+        try:
+            return Temperature(self.as_k() * other.as_k(), 'K')
+        except AttributeError:
+            return Temperature(self.as_k() * other, 'K')
+
+    def __div__(self, other):
+        "Divide this temp by another temp or float/int"
+        try:
+            return Temperature(self.as_k() / other.as_k(), 'K')
+        except AttributeError:
+            return Temperature(self.as_k() / other, 'K')
+
+    def __truediv__(self, other):
+        return self.__div__(other)
 
     def __str__(self):
         return "{:.2f} K".format(self._value)
