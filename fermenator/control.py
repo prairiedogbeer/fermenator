@@ -13,11 +13,11 @@ import Adafruit_GPIO
 ON = 1
 OFF = 0
 
-class Relay(object):
+class Control(object):
     """
     Implements a relay object that can be turned on or off. This version of the
     object doesn't actually control any relays, more-or-less acting as a mock
-    relay. Extend this class to control specific hardware architectures.
+    control. Extend this class to control specific hardware architectures.
     """
 
     def __init__(self, name, **kwargs):
@@ -213,7 +213,7 @@ class Relay(object):
             if self._duty_cycle_thread.stopping.wait(timeout=off_time):
                 break
 
-class GPIORelay(Relay):
+class GPIOControl(Control):
     """
     Implement relay as a GPIO Device such as would be connected to a
     Raspberry Pi. Adds support for duty cycling the relay rather than keeping
@@ -224,7 +224,7 @@ class GPIORelay(Relay):
 
     def __init__(self, name, **kwargs):
         """
-        Same as :class:`Relay`, but also requires kwarg `gpio_pin`, which
+        Same as :class:`Control`, but also requires kwarg `gpio_pin`, which
         refers to the GPIO pin number connected to the relay. Optionally,
         pass a `duty_cycle` and `cycle_time` parameter to enable duty-cycling
         of the relay. `duty_cycle` should be a floating-point percentage of on time
@@ -264,9 +264,9 @@ class GPIORelay(Relay):
         except AttributeError:
             pass
 
-class MCP23017Relay(Relay):
+class MCP23017Control(Control):
     """
-    Implements a :class:`Relay` connected to a GPIO expansion IC, the
+    Implements a :class:`Control` connected to a GPIO expansion IC, the
     MC23017Y. The MC23017 sits on the I2C bus and implements a simple GPIO-like
     interface.
     """
@@ -312,3 +312,10 @@ class MCP23017Relay(Relay):
             self._output_device.output(self.mx_pin, not self.high_signal)
         except AttributeError:
             pass
+
+class GlycolSolenoid(MCP23017Control):
+    """
+    Wrap the :class:`MCP23017Control` class, just to have a more intuitive
+    name that makes it clear in config what we are switching on and off.
+    """
+    pass

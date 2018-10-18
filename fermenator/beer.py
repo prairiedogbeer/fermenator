@@ -34,12 +34,12 @@ class AbstractBeer(object):
         - gravity_unit (optional, defaults to 'P', plato)
         - temperature_unit (optional, defaults to 'C', celcius)
         """
-        self._name = name.upper().strip()
+        self.name = name.upper().strip()
         self.log = logging.getLogger(
             "{}.{}.{}".format(
                 self.__class__.__module__,
                 self.__class__.__name__,
-                self._name))
+                self.name))
         self.data_age_warning_time = float(kwargs.pop(
             'data_age_warning_time', 60 * 3))
         self.gravity_unit = kwargs.pop('gravity_unit', 'P')
