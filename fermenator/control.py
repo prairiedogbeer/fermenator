@@ -206,12 +206,15 @@ class Control(object):
             on_time = self._duty_cycle * self._cycle_time
             off_time = self._cycle_time - on_time
         while True:
-            self._on_hook()
-            if self._duty_cycle_thread.stopping.wait(timeout=on_time):
-                break
-            self._off_hook()
-            if self._duty_cycle_thread.stopping.wait(timeout=off_time):
-                break
+            try:
+                self._on_hook()
+                if self._duty_cycle_thread.stopping.wait(timeout=on_time):
+                    break
+                self._off_hook()
+                if self._duty_cycle_thread.stopping.wait(timeout=off_time):
+                    break
+            except Exception as err:
+                self.log.error("Relay loop caught exception: %s", err)
 
 class GPIOControl(Control):
     """
