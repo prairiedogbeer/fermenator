@@ -87,13 +87,13 @@ class TempSensor(Sensor):
     Base class for all temperature sensor objects. Adds convenience methods
     around managing temperature units. The individual class implementations
     should deal with temperature conversions on the data storage side, but
-    the user should be able to set the `units` kwarg to C, K, or F to
-    specify what unit the data returned by the class should be in.
+    the user should be able to set the `sensor_units` kwarg to C, K, or F to
+    specify what unit the data returned by the class should be in (default: C)
     """
     def __init__(self, name, **kwargs):
         "Initialize"
         super(self, TempSensor).__init__(name, **kwargs)
-        try:
-            units = TEMP_UNITS[kwargs.pop('units', 'C')[0].upper()]
-        except KeyError:
+        units = kwargs.pop('sensor_units', 'C')[0].upper()
+        if units not in TEMP_UNITS:
             raise ConfigurationError("Temp units must be C, K, or F")
+        self.units = units
