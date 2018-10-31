@@ -2,6 +2,8 @@
 This file contains methods for temperature conversion and a :class:`Temperature`
 class, which should be used to wrap temperature data to make it more portable.
 """
+from .exception import ConfigurationError
+
 #: These can be used to validate units
 TEMP_UNITS = ('C', 'K', 'F')
 
