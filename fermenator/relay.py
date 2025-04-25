@@ -2,6 +2,7 @@
 This module contains :class:`Relay`-type objects, which represent actual Relay
 devices used to enable or disable heating and cooling of beers.
 """
+
 import logging
 import time
 import gpiozero
@@ -12,6 +13,7 @@ import Adafruit_GPIO
 
 ON = 1
 OFF = 0
+
 
 class Relay(object):
     """
@@ -48,24 +50,23 @@ class Relay(object):
 
         """
         self.log = logging.getLogger(
-            "{}.{}.{}".format(
-                self.__class__.__module__, self.__class__.__name__,
-                name))
+            "{}.{}.{}".format(self.__class__.__module__, self.__class__.__name__, name)
+        )
         self._config = kwargs
         self.name = name
         self._state = None
         try:
-            self._duty_cycle = float(kwargs['duty_cycle'])
-            self._cycle_time = float(kwargs['cycle_time'])
+            self._duty_cycle = float(kwargs["duty_cycle"])
+            self._cycle_time = float(kwargs["cycle_time"])
         except KeyError:
             self.log.debug("No duty cycle configured")
             self._duty_cycle = None
         try:
-            self.minimum_off_time = float(kwargs['minimum_off_time'])
+            self.minimum_off_time = float(kwargs["minimum_off_time"])
         except KeyError:
             self.minimum_off_time = 0.0
         try:
-            self.high_signal = kwargs['active_high']
+            self.high_signal = kwargs["active_high"]
         except KeyError:
             self.high_signal = True
         self._duty_cycle_thread = None
@@ -73,7 +74,12 @@ class Relay(object):
         self.off()
 
     def __del__(self):
-        self.off()
+        try:
+            self.off()
+        except AttributeError:
+            # this happens when relay hasn't fully instantiated before deletion
+            # ie. 'MCP23017Relay' object has no attribute '_duty_cycle_thread'
+            pass
 
     def on(self):
         """
@@ -88,7 +94,8 @@ class Relay(object):
                 self.log.warning("duty cycle thread died and will be restarted")
                 self.off()
         self._duty_cycle_thread = gpiozero.threads.GPIOThread(
-            target=self._run_duty_cycle)
+            target=self._run_duty_cycle
+        )
         self._duty_cycle_thread.start()
 
     def _on_hook(self):
@@ -194,12 +201,12 @@ class Relay(object):
         if remaining_time > 0:
             self.log.debug(
                 "waiting %ds for minimum_off_time to expire before turning on",
-                remaining_time)
+                remaining_time,
+            )
             if self._duty_cycle_thread.stopping.wait(timeout=remaining_time):
                 return
         elif self._duty_cycle:
-            self.log.debug(
-                "duty cycle thread starting at %0.2f", self._duty_cycle)
+            self.log.debug("duty cycle thread starting at %0.2f", self._duty_cycle)
         on_time = None
         off_time = None
         if self._duty_cycle:
@@ -215,6 +222,7 @@ class Relay(object):
                     break
             except Exception as err:
                 self.log.error("Relay loop caught exception: %s", err)
+
 
 class GPIORelay(Relay):
     """
@@ -245,12 +253,11 @@ class GPIORelay(Relay):
 
         """
         if "gpio_pin" not in kwargs:
-            raise ConfigurationError(
-                "No gpio_pin specified in relay configuration")
+            raise ConfigurationError("No gpio_pin specified in relay configuration")
         self._output_device = gpiozero.DigitalOutputDevice(
-            pin=int(kwargs['gpio_pin']),
-            active_high=kwargs['active_high'],
-            initial_value=False # keep relay turned off initially
+            pin=int(kwargs["gpio_pin"]),
+            active_high=kwargs["active_high"],
+            initial_value=False,  # keep relay turned off initially
         )
         super(GPIORelay, self).__init__(name, **kwargs)
 
@@ -266,6 +273,7 @@ class GPIORelay(Relay):
             self._output_device.off()
         except AttributeError:
             pass
+
 
 class MCP23017Relay(Relay):
     """
@@ -287,19 +295,16 @@ class MCP23017Relay(Relay):
 
         """
         if "mx_pin" not in kwargs:
-            raise ConfigurationError(
-                "No gpio_pin specified in relay configuration")
+            raise ConfigurationError("No gpio_pin specified in relay configuration")
         try:
-            self.mx_pin = kwargs['mx_pin']
+            self.mx_pin = kwargs["mx_pin"]
         except KeyError:
             raise ConfigurationError("mx_pin must be provided")
         try:
-            self.i2c_addr = kwargs['i2c_addr']
+            self.i2c_addr = kwargs["i2c_addr"]
         except KeyError:
             self.i2c_addr = 0x20
-        self._output_device = fermenator.i2c.MCP23017(
-            self.i2c_addr
-        )
+        self._output_device = fermenator.i2c.MCP23017(self.i2c_addr)
         self._output_device.setup(self.mx_pin, Adafruit_GPIO.OUT)
         super(MCP23017Relay, self).__init__(name, **kwargs)
 
